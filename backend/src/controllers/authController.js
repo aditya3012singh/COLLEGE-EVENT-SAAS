@@ -8,6 +8,7 @@ const prisma = new PrismaClient();
 export const register = async (req, res) => {
   try {
     const { name, email, password, role, collegeId } = req.body;
+    console.log(req.body);
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: { name, email, password: hashedPassword, role, collegeId }
@@ -29,7 +30,7 @@ export const login = async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, role: user.role, collegeId: user.collegeId },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || "secret",
       { expiresIn: '7d' }
     );
 
