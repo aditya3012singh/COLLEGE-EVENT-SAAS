@@ -3,12 +3,12 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-import authRoutes from './routes/authRoutes.js';
-import collegeRoutes from './routes/collegeRoutes.js';
-import clubRoutes from './routes/clubRoutes.js';
-import eventRoutes from './routes/eventRoutes.js';
-import registrationRoutes from './routes/registrationRoutes.js';
-import razorpayWebhookRoutes from './routes/razorpayWebhookRoutes.js'; // if you use webhook
+import authRoutes from './routes/auth.js';
+import collegeRoutes from './routes/college.js';
+import clubRoutes from './routes/club.js';
+import eventRoutes from './routes/event.js';
+import registrationRoutes from './routes/registration.js';
+import razorpayWebhookRoutes from './utils/paymentWebhooks.js'; // if you use webhook
 
 dotenv.config();
 

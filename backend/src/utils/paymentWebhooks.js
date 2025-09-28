@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export const razorpayWebhook = async (req, res) => {
+export default razorpayWebhook = async (req, res) => {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
   const shasum = crypto.createHmac('sha256', secret).update(JSON.stringify(req.body)).digest('hex');
 
