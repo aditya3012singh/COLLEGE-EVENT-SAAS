@@ -1,4 +1,3 @@
-// authController.js
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -8,12 +7,22 @@ const prisma = new PrismaClient();
 export const register = async (req, res) => {
   try {
     const { name, email, password, role, collegeId } = req.body;
-    console.log(req.body);
+
+    // Check if user with email already exists
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: { name, email, password: hashedPassword, role, collegeId }
     });
-    res.json({ message: 'User registered', user });
+
+    // Avoid returning password hash
+    const { password: _, ...userWithoutPassword } = user;
+
+    res.status(201).json({ message: 'User registered successfully', user: userWithoutPassword });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -23,6 +32,7 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await prisma.user.findUnique({ where: { email } });
+
     if (!user) return res.status(400).json({ error: 'User not found' });
 
     const valid = await bcrypt.compare(password, user.password);

@@ -1,5 +1,3 @@
-// schema.prisma
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -9,81 +7,116 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum UserRole {
+  STUDENT
+  ORGANIZER
+  ADMIN
+}
+
+enum EventVisibility {
+  OWN
+  SELECTED
+  ALL
+}
+
+enum PaymentGateway {
+  RAZORPAY
+  STRIPE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
 model College {
-  id       Int      @id @default(autoincrement())
-  name     String
-  code     String   @unique
-  users    User[]
-  clubs    Club[]
-  events   Event[]
+  id        Int      @id @default(autoincrement())
+  name      String
+  code      String   @unique
+  users     User[]
+  clubs     Club[]
+  events    Event[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Club {
-  id         Int      @id @default(autoincrement())
-  name       String
-  collegeId  Int
-  createdBy  Int      // Organizer who created the club
-  college    College  @relation(fields: [collegeId], references: [id])
-  events     Event[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  name      String
+  collegeId Int
+  createdBy Int // Organizer who created the club
+  college   College  @relation(fields: [collegeId], references: [id])
+  events    Event[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([collegeId])
 }
 
 model User {
-  id         Int       @id @default(autoincrement())
-  name       String
-  email      String    @unique
-  password   String
-  role       String    // STUDENT | ORGANIZER | ADMIN
-  collegeId  Int
-  college    College   @relation(fields: [collegeId], references: [id])
+  id            Int            @id @default(autoincrement())
+  name          String
+  email         String         @unique
+  password      String
+  role          UserRole
+  collegeId     Int
+  college       College        @relation(fields: [collegeId], references: [id])
   registrations Registration[]
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([collegeId])
 }
 
 model Event {
-  id          Int       @id @default(autoincrement())
-  title       String
-  description String?
-  dateTime    DateTime
-  venue       String
-  collegeId   Int
-  clubId      Int?       // optional: if null, college-wide event
-  createdBy   Int        // organizer ID
-  visibility  String     // OWN | SELECTED | ALL
-  college     College    @relation(fields: [collegeId], references: [id])
-  club        Club?      @relation(fields: [clubId], references: [id])
-  registrations Registration[]
+  id              Int                   @id @default(autoincrement())
+  title           String
+  description     String?
+  dateTime        DateTime
+  venue           String
+  collegeId       Int
+  clubId          Int? // optional: if null, college-wide event
+  createdBy       Int // organizer ID
+  visibility      EventVisibility
+  college         College               @relation(fields: [collegeId], references: [id])
+  club            Club?                 @relation(fields: [clubId], references: [id])
+  registrations   Registration[]
   allowedColleges EventAllowedCollege[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([collegeId])
+  @@index([clubId])
 }
 
 model EventAllowedCollege {
-  id        Int    @id @default(autoincrement())
+  id        Int   @id @default(autoincrement())
   eventId   Int
   collegeId Int
-  event     Event   @relation(fields: [eventId], references: [id])
+  event     Event @relation(fields: [eventId], references: [id])
+
+  @@index([eventId])
+  @@index([collegeId])
 }
 
 model Registration {
-  id             Int      @id @default(autoincrement())
+  id             Int             @id @default(autoincrement())
   userId         Int
   eventId        Int
-  qrPayload      String?  // signed QR token
+  qrPayload      String? // signed QR token
   qrImageUrl     String?
-  attended       Boolean  @default(false)
-  paidAmount     Int?     
-  currency       String?  
-  paymentGateway String?  // RAZORPAY | STRIPE
-  paymentId      String?  // gateway order/session id
-  paymentStatus  String?  // PENDING | PAID | FAILED
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  user           User     @relation(fields: [userId], references: [id])
-  event          Event    @relation(fields: [eventId], references: [id])
-}
+  attended       Boolean         @default(false)
+  paidAmount     Int?
+  currency       String?
+  paymentGateway PaymentGateway?
+  paymentId      String? // gateway order/session id
+  paymentStatus  PaymentStatus?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  user           User            @relation(fields: [userId], references: [id])
+  event          Event           @relation(fields: [eventId], references: [id])
 
+  @@index([userId])
+  @@index([eventId])
+}
