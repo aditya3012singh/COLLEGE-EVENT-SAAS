@@ -30,41 +30,60 @@ enum PaymentStatus {
   FAILED
 }
 
+enum ClubMembershipStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  LEFT
+}
+
+enum RecruitmentStatus {
+  OPEN
+  CLOSED
+}
+
 model College {
-  id        Int      @id @default(autoincrement())
-  name      String
-  code      String   @unique
-  users     User[]
-  clubs     Club[]
-  events    Event[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  Int                   @id @default(autoincrement())
+  name                String
+  code                String                @unique
+  users               User[]
+  clubs               Club[]
+  events              Event[]
+  allowedEventColleges EventAllowedCollege[]
+  logo                String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
 }
 
 model Club {
-  id        Int      @id @default(autoincrement())
-  name      String
-  collegeId Int
-  createdBy Int // Organizer who created the club
-  college   College  @relation(fields: [collegeId], references: [id])
-  events    Event[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           Int                @id @default(autoincrement())
+  name         String
+  collegeId    Int
+  createdBy    String // Organizer who created the club
+  description  String?
+  college      College            @relation(fields: [collegeId], references: [id])
+  events       Event[]
+  memberships  ClubMembership[]
+  recruitments ClubRecruitment[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@index([collegeId])
 }
 
 model User {
-  id            Int            @id @default(autoincrement())
-  name          String
-  email         String         @unique
-  password      String
-  role          UserRole
-  collegeId     Int
-  college       College        @relation(fields: [collegeId], references: [id])
-  registrations Registration[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                  Int            @id @default(autoincrement())
+  name                String
+  email               String         @unique
+  password            String
+  role                UserRole
+  collegeId           Int
+  college             College        @relation(fields: [collegeId], references: [id])
+  registrations       Registration[] @relation("EventRegistrant")
+  scannedRegistrations Registration[] @relation("AttendanceScanner")
+  memberships         ClubMembership[]
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
 
   @@index([collegeId])
 }
@@ -79,6 +98,9 @@ model Event {
   clubId          Int? // optional: if null, college-wide event
   createdBy       Int // organizer ID
   visibility      EventVisibility
+  isPaid          Boolean              @default(false)
+  price           Int? // in smallest currency unit (paise for INR, cents for USD)
+  currency        String? // e.g., "INR", "USD"
   college         College               @relation(fields: [collegeId], references: [id])
   club            Club?                 @relation(fields: [clubId], references: [id])
   registrations   Registration[]
@@ -91,11 +113,13 @@ model Event {
 }
 
 model EventAllowedCollege {
-  id        Int   @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   eventId   Int
   collegeId Int
-  event     Event @relation(fields: [eventId], references: [id])
+  event     Event    @relation(fields: [eventId], references: [id])
+  college   College  @relation(fields: [collegeId], references: [id])
 
+  @@unique([eventId, collegeId])
   @@index([eventId])
   @@index([collegeId])
 }
@@ -104,9 +128,12 @@ model Registration {
   id             Int             @id @default(autoincrement())
   userId         Int
   eventId        Int
-  qrPayload      String? // signed QR token
+  qrPayload      String? // signed QR token for scanning
   qrImageUrl     String?
   attended       Boolean         @default(false)
+  scannedAt      DateTime? // timestamp when QR was scanned for attendance
+  scannedBy      Int? // organizer/admin user ID who scanned the QR
+  scanner        User?           @relation("AttendanceScanner", fields: [scannedBy], references: [id])
   paidAmount     Int?
   currency       String?
   paymentGateway PaymentGateway?
@@ -114,9 +141,48 @@ model Registration {
   paymentStatus  PaymentStatus?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
-  user           User            @relation(fields: [userId], references: [id])
+  user           User            @relation("EventRegistrant", fields: [userId], references: [id])
   event          Event           @relation(fields: [eventId], references: [id])
 
+  @@unique([userId, eventId])
   @@index([userId])
   @@index([eventId])
+  @@index([attended])
+  @@index([scannedAt])
+}
+
+model ClubMembership {
+  id        Int                   @id @default(autoincrement())
+  userId    Int
+  clubId    Int
+  status    ClubMembershipStatus  @default(PENDING)
+  joinedAt DateTime?
+  leftAt    DateTime?
+  user      User                   @relation(fields: [userId], references: [id])
+  club     Club                   @relation(fields: [clubId], references: [id])
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@unique([userId, clubId])
+  @@index([userId])
+  @@index([clubId])
+  @@index([status])
+}
+
+model ClubRecruitment {
+  id          Int              @id @default(autoincrement())
+  clubId      Int
+  title       String
+  description String?
+  status      RecruitmentStatus @default(OPEN)
+  startDate   DateTime
+  endDate     DateTime?
+  requirements String? // e.g., "Open to all students", "Second year and above"
+  club        Club             @relation(fields: [clubId], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([clubId])
+  @@index([status])
+  @@index([startDate])
 }
