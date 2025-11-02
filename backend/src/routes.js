@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login } from './controllers/authController.js';
+import { register, login, getMe, verifyToken } from './controllers/authController.js';
 import {
   getAllColleges,
   getCollegeById,
@@ -33,9 +33,14 @@ import expressRaw from 'express';
 // Create main router
 const router = express.Router();
 
-// ===== Auth Routes (Public) =====
+// ===== Auth Routes =====
+// Public routes
 router.post('/auth/register', register);
 router.post('/auth/login', login);
+
+// Protected routes
+router.get('/auth/me', authMiddleware, getMe);
+router.get('/auth/verify', authMiddleware, verifyToken);
 
 // ===== College Routes =====
 // Public

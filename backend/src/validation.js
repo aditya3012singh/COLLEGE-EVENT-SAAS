@@ -2,17 +2,32 @@ import { z } from 'zod';
 
 // User registration validation
 export const registerSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["STUDENT", "ORGANIZER", "ADMIN"]),
-  collegeId: z.number().int().positive(),
+  name: z.string()
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must be less than 100 characters")
+    .trim(),
+  email: z.string()
+    .email("Invalid email address")
+    .toLowerCase()
+    .trim()
+    .max(255, "Email must be less than 255 characters"),
+  password: z.string()
+    .min(6, "Password must be at least 6 characters")
+    .max(128, "Password must be less than 128 characters"),
+  role: z.enum(["STUDENT", "ORGANIZER", "ADMIN"], {
+    errorMap: () => ({ message: "Role must be STUDENT, ORGANIZER, or ADMIN" })
+  }),
+  collegeId: z.number().int().positive("College ID must be a positive integer"),
 });
 
 // User login validation
 export const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string()
+    .email("Invalid email address")
+    .toLowerCase()
+    .trim(),
+  password: z.string()
+    .min(1, "Password is required"),
 });
 
 // College creation/update validation
