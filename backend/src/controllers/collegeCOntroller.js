@@ -1,47 +1,55 @@
 import { PrismaClient } from '@prisma/client';
-
 const prisma = new PrismaClient();
 
+/**
+ * ✅ Create College
+ */
 export const createCollege = async (req, res) => {
   try {
-    const { name, code , logo} = req.body;
+    const { name, code, logo } = req.body;
 
-    if(!name || !code){
-      return  res.status(400).json({ 
-        error: 'Name and code are required' ,
-        required: ['name','code']
+    if (!name || !code) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        required: ['name', 'code'],
       });
     }
 
-    const normalizedCode = code.toUpperCase().trim();
     const normalizedName = name.trim();
+    const normalizedCode = code.toUpperCase().trim();
 
-    // Optionally check if code is unique before create to catch friendly error early
-    const existingCollege = await prisma.college.findUnique({ where: { normalizedCode } });
+    // Check for existing college by code
+    const existingCollege = await prisma.college.findUnique({
+      where: { code: normalizedCode },
+    });
+
     if (existingCollege) {
-      return res.status(409).json({ error: 'College code already exists' ,
-        message: 'A college with this code already exists'
+      return res.status(409).json({
+        error: 'College code already exists',
+        message: 'A college with this code already exists',
       });
     }
 
     const college = await prisma.college.create({
-      data: { 
-        name: normalizedName, 
-        code: normalizedCode , 
-        logo: logo?.trim() || null
+      data: {
+        name: normalizedName,
+        code: normalizedCode,
+        logo: logo?.trim() || null,
       },
-      select: { 
-        id: true, 
-        name: true, 
+      select: {
+        id: true,
+        name: true,
         code: true,
         logo: true,
-        createdAt: true  
-      }
+        createdAt: true,
+      },
+    });
 
-      });
-    res.status(201).json({ message: 'College created', college });
+    res.status(201).json({
+      message: 'College created successfully',
+      college,
+    });
   } catch (err) {
-    // ✅ 6. Handle known Prisma errors
     if (err.code === 'P2002') {
       return res.status(409).json({ error: 'College code must be unique' });
     }
@@ -49,34 +57,39 @@ export const createCollege = async (req, res) => {
     console.error('Create college error:', err);
     res.status(500).json({
       error: 'Failed to create college',
-      message: process.env.NODE_ENV === 'development' ? err.message : 'An internal server error occurred',
+      message:
+        process.env.NODE_ENV === 'development'
+          ? err.message
+          : 'An internal server error occurred',
     });
   }
 };
 
-
+/**
+ * ✅ Get All Colleges
+ */
 export const getAllColleges = async (req, res) => {
   try {
-    const{limit=100, skip=0} = req.query;
+    const { limit = 100, skip = 0 } = req.query;
+
     const colleges = await prisma.college.findMany({
       skip: Number(skip),
       take: Math.min(Number(limit), 100),
-      select: { 
-        id: true, 
-        name: true, 
+      select: {
+        id: true,
+        name: true,
         code: true,
         logo: true,
-        createdAt: true  
+        createdAt: true,
       },
-      orderBy: { name: 'asc' }
+      orderBy: { name: 'asc' },
     });
-    res.status(200).json(
-      {
-        message: 'Colleges retrieved successfully',
-        count: colleges.length,
-        colleges
-      }
-    );
+
+    res.status(200).json({
+      message: 'Colleges retrieved successfully',
+      count: colleges.length,
+      colleges,
+    });
   } catch (err) {
     console.error('Get all colleges error:', err);
     res.status(500).json({
@@ -89,46 +102,53 @@ export const getAllColleges = async (req, res) => {
   }
 };
 
+/**
+ * ✅ Get College by ID (includes clubs & events)
+ */
 export const getCollegeById = async (req, res) => {
   try {
     const collegeId = Number(req.params.id);
-    if(!collegeId || isNaN(collegeId) || collegeId <=0){
+    if (!collegeId || isNaN(collegeId) || collegeId <= 0) {
       return res.status(400).json({ error: 'Invalid college ID' });
     }
+
     const college = await prisma.college.findUnique({
       where: { id: collegeId },
       select: {
-        id:true,
+        id: true,
         name: true,
-        code:true,
-        logo:true,
-        createdAt:true,
+        code: true,
+        logo: true,
+        createdAt: true,
         clubs: {
-          select:{
-            id:true,
-            name:true,
-            description:true,
-            createdBy:true,
-            createdAt:true
-          }
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            createdBy: true,
+            createdAt: true,
+          },
         },
         events: {
-          select:{
-            id:true,
-            title:true,
-            description:true,
-            dateTime:true,
-            venue:true,
-            createdBy:true,
-            createdAt:true,
-            isPaid:true,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            dateTime: true,
+            venue: true,
+            createdBy: true,
+            createdAt: true,
+            isPaid: true,
           },
           take: 10,
-          orderBy: { dateTime: 'desc'
-          }
-        }
-      }
+          orderBy: { dateTime: 'desc' },
+        },
+      },
     });
+
+    if (!college) {
+      return res.status(404).json({ error: 'College not found' });
+    }
 
     res.status(200).json({
       message: 'College fetched successfully',
@@ -146,63 +166,65 @@ export const getCollegeById = async (req, res) => {
   }
 };
 
+/**
+ * ✅ Update College
+ */
+export const updateCollege = async (req, res) => {
+  try {
+    const collegeId = Number(req.params.id);
+    const { name, code, logo } = req.body;
 
+    if (!collegeId || isNaN(collegeId) || collegeId <= 0) {
+      return res.status(400).json({ error: 'Invalid college ID' });
+    }
 
-  export const updateCollege = async (req, res) => {
-    try {
-      const collegeId = Number(req.params.id);
-      const { name, code, logo } = req.body;
-
-      if(!collegeId || isNaN(collegeId) || collegeId <=0){
-        return res.status(400).json({ error: 'Invalid college ID' });
-      }
-
-      if(!name || !code){
-        return  res.status(400).json({ 
-          error: 'Name and code are required' ,
-          required: ['name','code']
-        });
-      }
-      
-      const existingCollege = await prisma.college.findUnique({ 
-        where: { 
-          id: collegeId 
-        } 
+    if (!name || !code) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        required: ['name', 'code'],
       });
+    }
 
-      if (!existingCollege) return res.status(404).json({ error: 'College not found' });
+    const existingCollege = await prisma.college.findUnique({
+      where: { id: collegeId },
+    });
 
-      // Check for code uniqueness on update (if code changed)
-      if (code && code !== existingCollege.code) {
-        const codeExists = await prisma.college.findUnique({ where: { code } });
-        if (codeExists) {
-          return res.status(409).json({ error: 'College code already exists' });
-        }
-      }
+    if (!existingCollege)
+      return res.status(404).json({ error: 'College not found' });
 
-      const updatedCollege = await prisma.college.update({
-        where:{
-          id:collegeId,
-        },
-        data:{
-          name: name.trim(),
-          code: code.toUpperCase().trim(),
-           ...(logo && { logo: logo.trim() }),
-        },
-        select: {
-          id:true,
-          name: true,
-          code:true,
-          logo:true,
-          createdAt:true
-        }
+    const normalizedCode = code.toUpperCase().trim();
+
+    // Check for unique code if changed
+    if (normalizedCode !== existingCollege.code) {
+      const codeExists = await prisma.college.findUnique({
+        where: { code: normalizedCode },
       });
+      if (codeExists) {
+        return res.status(409).json({ error: 'College code already exists' });
+      }
+    }
 
-      return res.satus(200).json({
-        message: 'College updated successfully',
-        college: updatedCollege,
-      })
-    } catch (err) {
+    const updatedCollege = await prisma.college.update({
+      where: { id: collegeId },
+      data: {
+        name: name.trim(),
+        code: normalizedCode,
+        ...(logo && { logo: logo.trim() }),
+      },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        logo: true,
+        createdAt: true,
+      },
+    });
+
+    return res.status(200).json({
+      message: 'College updated successfully',
+      college: updatedCollege,
+    });
+  } catch (err) {
     console.error('Update college error:', err);
     res.status(500).json({
       error: 'Failed to update college',
@@ -214,49 +236,42 @@ export const getCollegeById = async (req, res) => {
   }
 };
 
-
-
+/**
+ * ✅ Delete College (with FK constraint handling)
+ */
 export const deleteCollege = async (req, res) => {
   try {
     const collegeId = Number(req.params.id);
 
-    if(!collegeId || isNaN(collegeId) || collegeId <=0){
+    if (!collegeId || isNaN(collegeId) || collegeId <= 0) {
       return res.status(400).json({ error: 'Invalid college ID' });
     }
 
-    const existingCollege = await prisma.college.findUnique({ 
-      where: { 
-        id: collegeId
-      } 
+    const existingCollege = await prisma.college.findUnique({
+      where: { id: collegeId },
     });
 
-    if (!existingCollege) return res.status(404).json({ error: 'College not found' });
+    if (!existingCollege)
+      return res.status(404).json({ error: 'College not found' });
 
     try {
       const deletedCollege = await prisma.college.delete({
-        where:{
-          id:collegeId,
-        },
-        select: {
-          id:true,
-          name: true,
-          code:true,
-        }
+        where: { id: collegeId },
+        select: { id: true, name: true, code: true },
       });
+
       return res.status(200).json({
         message: 'College deleted successfully',
         college: deletedCollege,
       });
-    }
-    catch (prismaErr) {
-      // ✅ Handle foreign key constraint (P2003)
+    } catch (prismaErr) {
       if (prismaErr.code === 'P2003') {
         return res.status(409).json({
-          error: 'Cannot delete college with associated records (clubs, events, or users)',
+          error:
+            'Cannot delete college with associated records (clubs, events, or users)',
         });
       }
-
-      throw prismaErr; // rethrow if not a known Prisma error
+      throw prismaErr;
     }
   } catch (err) {
     console.error('Delete college error:', err);

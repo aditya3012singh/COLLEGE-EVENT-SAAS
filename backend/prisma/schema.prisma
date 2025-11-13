@@ -43,23 +43,24 @@ enum RecruitmentStatus {
 }
 
 model College {
-  id                  Int                   @id @default(autoincrement())
-  name                String
-  code                String                @unique
-  users               User[]
-  clubs               Club[]
-  events              Event[]
+  id                   Int                    @id @default(autoincrement())
+  name                 String
+  code                 String                 @unique
+  users                User[]
+  clubs                Club[]
+  events               Event[]
   allowedEventColleges EventAllowedCollege[]
-  logo                String?
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  logo                 String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
 }
 
 model Club {
   id           Int                @id @default(autoincrement())
   name         String
   collegeId    Int
-  createdBy    String // Organizer who created the club
+  createdBy    Int                 // organizer who created the club (references User.id)
+  creator      User               @relation(fields: [createdBy], references: [id])
   description  String?
   college      College            @relation(fields: [collegeId], references: [id])
   events       Event[]
@@ -69,23 +70,29 @@ model Club {
   updatedAt    DateTime           @updatedAt
 
   @@index([collegeId])
+  User User[] @relation("creator")
 }
 
 model User {
-  id                  Int            @id @default(autoincrement())
-  name                String
-  email               String         @unique
-  password            String
-  role                UserRole
-  collegeId           Int
-  college             College        @relation(fields: [collegeId], references: [id])
-  registrations       Registration[] @relation("EventRegistrant")
+  id                   Int            @id @default(autoincrement())
+  name                 String
+  email                String         @unique
+  password             String
+  role                 UserRole
+  collegeId            Int
+  college              College        @relation(fields: [collegeId], references: [id])
+  registrations        Registration[] @relation("EventRegistrant")
   scannedRegistrations Registration[] @relation("AttendanceScanner")
-  memberships         ClubMembership[]
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  memberships          ClubMembership[]
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  // Clubs created by this user (organizer)
+  createdClubs         Club[]         @relation("creator")
 
   @@index([collegeId])
+  Event Event[]
+  Club Club[]
 }
 
 model Event {
@@ -96,9 +103,10 @@ model Event {
   venue           String
   collegeId       Int
   clubId          Int? // optional: if null, college-wide event
-  createdBy       Int // organizer ID
+  createdBy       Int  // organizer ID (references User.id)
+  creator         User @relation(fields: [createdBy], references: [id])
   visibility      EventVisibility
-  isPaid          Boolean              @default(false)
+  isPaid          Boolean               @default(false)
   price           Int? // in smallest currency unit (paise for INR, cents for USD)
   currency        String? // e.g., "INR", "USD"
   college         College               @relation(fields: [collegeId], references: [id])
@@ -152,16 +160,16 @@ model Registration {
 }
 
 model ClubMembership {
-  id        Int                   @id @default(autoincrement())
-  userId    Int
-  clubId    Int
-  status    ClubMembershipStatus  @default(PENDING)
-  joinedAt DateTime?
-  leftAt    DateTime?
-  user      User                   @relation(fields: [userId], references: [id])
-  club     Club                   @relation(fields: [clubId], references: [id])
-  createdAt DateTime              @default(now())
-  updatedAt DateTime              @updatedAt
+  id         Int                  @id @default(autoincrement())
+  userId     Int
+  clubId     Int
+  status     ClubMembershipStatus @default(PENDING)
+  joinedAt   DateTime?
+  leftAt     DateTime?
+  user       User                 @relation(fields: [userId], references: [id])
+  club       Club                 @relation(fields: [clubId], references: [id])
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
 
   @@unique([userId, clubId])
   @@index([userId])
