@@ -77,6 +77,12 @@ const initialState = {
   items: [], // list of colleges
   current: null, // single college details
   status: 'idle',
+  // Pagination state
+  total: 0,
+  count: 0,
+  skip: 0,
+  limit: 100,
+  totalPages: 0,
   loadingMap: {
     fetching: false,
     creating: false,
@@ -122,11 +128,21 @@ const collegesSlice = createSlice({
       .addCase(fetchColleges.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.loadingMap.fetching = false;
-        // action.payload may be array or object; normalize:
-        if (Array.isArray(action.payload)) {
-          state.items = action.payload;
-        } else if (action.payload?.colleges) {
-          state.items = action.payload.colleges;
+        // Backend returns: { message, count, total, colleges: [...], pagination: { skip, limit, totalPages } }
+        const payload = action.payload || {};
+        if (Array.isArray(payload)) {
+          // Fallback: if payload is direct array
+          state.items = payload;
+        } else if (payload.colleges) {
+          // Normal case: backend returns object with colleges array
+          state.items = payload.colleges;
+          state.count = payload.count ?? payload.colleges.length;
+          state.total = payload.total ?? payload.colleges.length;
+          if (payload.pagination) {
+            state.skip = payload.pagination.skip ?? 0;
+            state.limit = payload.pagination.limit ?? 100;
+            state.totalPages = payload.pagination.totalPages ?? Math.ceil(state.total / state.limit);
+          }
         } else {
           state.items = [];
         }
@@ -244,5 +260,12 @@ export const selectColleges = (state) => state.colleges.items;
 export const selectCollegesLoading = (state) => state.colleges.loadingMap;
 export const selectCurrentCollege = (state) => state.colleges.current;
 export const selectCollegesError = (state) => state.colleges.error;
+export const selectCollegesPagination = (state) => ({
+  total: state.colleges.total,
+  count: state.colleges.count,
+  skip: state.colleges.skip,
+  limit: state.colleges.limit,
+  totalPages: state.colleges.totalPages,
+});
 
 export default collegesSlice.reducer;

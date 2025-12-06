@@ -34,18 +34,32 @@ export const fetchRegistrationsForEvent = createAsyncThunk(
   }
 );
 
-// Optional: fetch current user's registrations (student view)
-export const fetchMyRegistrations = createAsyncThunk(
-  'registrations/fetchMy',
-  async (_, { rejectWithValue }) => {
+// Check-in event using QR token (organizer/admin)
+export const checkInEvent = createAsyncThunk(
+  'registrations/checkIn',
+  async (payload, { rejectWithValue }) => {
     try {
-      const res = await api.get('/registrations/my'); // implement backend route if needed
-      return res.data.registrations || res.data;
+      const res = await api.post('/registrations/checkin', payload);
+      return res.data;
     } catch (err) {
-      return rejectWithValue(err?.response?.data || { error: 'Fetch my registrations failed' });
+      return rejectWithValue(err?.response?.data || { error: 'Check-in failed' });
     }
   }
 );
+
+// Optional: fetch current user's registrations (student view)
+// NOTE: Backend route not implemented yet - keeping for future use
+// export const fetchMyRegistrations = createAsyncThunk(
+//   'registrations/fetchMy',
+//   async (_, { rejectWithValue }) => {
+//     try {
+//       const res = await api.get('/registrations/my');
+//       return res.data.registrations || res.data;
+//     } catch (err) {
+//       return rejectWithValue(err?.response?.data || { error: 'Fetch my registrations failed' });
+//     }
+//   }
+// );
 
 /**
  * Slice
@@ -56,8 +70,10 @@ const initialState = {
   current: null, // single registration detail if needed
   status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   registering: false,
+  checkingIn: false, // loading state for check-in
   lastCreated: null, // last created registration object
   lastOrder: null, // razorpay order if returned
+  lastCheckIn: null, // last check-in result
   error: null,
 };
 
@@ -123,25 +139,36 @@ const registrationsSlice = createSlice({
       })
       .addCase(fetchRegistrationsForEvent.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        // API returns array of registrations
-        state.items = action.payload || [];
+        // Backend returns: { message, count, registrations: [...] }
+        const payload = action.payload || {};
+        state.items = payload.registrations || payload.data || (Array.isArray(payload) ? payload : []);
       })
       .addCase(fetchRegistrationsForEvent.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload || action.error;
       });
 
-    // fetchMyRegistrations
+    // checkInEvent
     builder
-      .addCase(fetchMyRegistrations.pending, (state) => {
+      .addCase(checkInEvent.pending, (state) => {
+        state.checkingIn = true;
         state.status = 'loading';
         state.error = null;
       })
-      .addCase(fetchMyRegistrations.fulfilled, (state, action) => {
+      .addCase(checkInEvent.fulfilled, (state, action) => {
+        state.checkingIn = false;
         state.status = 'succeeded';
-        state.items = action.payload || [];
+        const payload = action.payload || {};
+        state.lastCheckIn = payload;
+        // Update registration in items if found
+        if (payload.registrationId) {
+          state.items = state.items.map((r) =>
+            r.id === payload.registrationId ? { ...r, attended: true, scannedAt: new Date() } : r
+          );
+        }
       })
-      .addCase(fetchMyRegistrations.rejected, (state, action) => {
+      .addCase(checkInEvent.rejected, (state, action) => {
+        state.checkingIn = false;
         state.status = 'failed';
         state.error = action.payload || action.error;
       });
@@ -160,5 +187,7 @@ export const selectRegistrationById = (state, id) =>
 export const selectLastCreatedRegistration = (state) => state.registrations.lastCreated;
 export const selectLastOrder = (state) => state.registrations.lastOrder;
 export const selectRegistrationsError = (state) => state.registrations.error;
+export const selectCheckingIn = (state) => state.registrations.checkingIn;
+export const selectLastCheckIn = (state) => state.registrations.lastCheckIn;
 
 export default registrationsSlice.reducer;

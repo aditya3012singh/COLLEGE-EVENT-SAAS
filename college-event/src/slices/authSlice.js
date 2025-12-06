@@ -40,6 +40,16 @@ export const verify = createAsyncThunk('auth/verify', async (_, { rejectWithValu
   }
 });
 
+// Get current user profile
+export const getMe = createAsyncThunk('auth/getMe', async (_, { rejectWithValue }) => {
+  try {
+    const res = await api.get('/auth/me');
+    return res.data;
+  } catch (err) {
+    return rejectWithValue(err?.response?.data || { error: 'Get user failed' });
+  }
+});
+
 /**
  * bootstrapAuth
  * - Try to load token from localStorage and set axios header.
@@ -200,6 +210,22 @@ const authSlice = createSlice({
       const token = action.payload?.token ?? null;
       state.token = token;
     });
+
+    // getMe
+    builder
+      .addCase(getMe.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(getMe.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        const payload = action.payload || {};
+        if (payload.user) state.user = payload.user;
+      })
+      .addCase(getMe.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload ?? action.error;
+      });
   },
 });
 
