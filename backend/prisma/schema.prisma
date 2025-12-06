@@ -72,6 +72,12 @@ model Club {
   createdBy    Int                 // organizer who created the club (references User.id)
   creator      User               @relation("UserCreatedClubs", fields: [createdBy], references: [id], onDelete: SetNull)
   description  String?
+  department   String?             // Department under which the club is registered
+  domain       String?             // Domain/field of the club (e.g., "Technology", "Arts", "Sports")
+  clubLeadId   Int?                // Current club lead (references User.id)
+  clubLead     User?               @relation("ClubLeads", fields: [clubLeadId], references: [id], onDelete: SetNull)
+  domainLeads  ClubDomainLead[]    // Multiple domain leads for different domains
+  achievements ClubAchievement[]  // Club achievements
   college      College            @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   events       Event[]
   memberships  ClubMembership[]
@@ -82,6 +88,40 @@ model Club {
 
   @@index([collegeId])
   @@index([createdBy])
+  @@index([clubLeadId])
+}
+
+model ClubDomainLead {
+  id        Int      @id @default(autoincrement())
+  clubId    Int
+  userId    Int      // User who is the domain lead
+  domain    String   // Domain name (e.g., "Web Development", "Design", "Marketing")
+  user      User     @relation("DomainLeads", fields: [userId], references: [id], onDelete: Cascade)
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clubId, userId, domain])
+  @@index([clubId])
+  @@index([userId])
+}
+
+model ClubAchievement {
+  id          Int      @id @default(autoincrement())
+  clubId      Int
+  title       String
+  description String?
+  type        String? // "CLUB" or "MEMBER" - club achievement vs member achievement
+  memberId    Int?     // If type is "MEMBER", this is the member who achieved it
+  member      User?    @relation("MemberAchievements", fields: [memberId], references: [id], onDelete: SetNull)
+  club        Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  achievedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clubId])
+  @@index([memberId])
+  @@index([type])
 }
 
 model User {
@@ -100,6 +140,15 @@ model User {
 
   // Clubs created by this user (organizer)
   createdClubs         Club[]         @relation("UserCreatedClubs")
+  
+  // Clubs where user is the lead
+  ledClubs             Club[]         @relation("ClubLeads")
+  
+  // Domain leads for clubs
+  domainLeads          ClubDomainLead[] @relation("DomainLeads")
+  
+  // Member achievements
+  memberAchievements   ClubAchievement[] @relation("MemberAchievements")
   
   // Events created by this user (organizer)
   createdEvents        Event[]        @relation("UserCreatedEvents")

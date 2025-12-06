@@ -8,10 +8,18 @@ const prisma = new PrismaClient();
 const createClubSchema = z.object({
   name: z.string().min(2),
   collegeId: z.union([z.string(), z.number()]).transform(Number),
+  description: z.string().optional(),
+  department: z.string().optional(),
+  domain: z.string().optional(),
+  clubLeadId: z.union([z.string(), z.number()]).transform(Number).optional(),
 });
 
 const updateClubSchema = z.object({
   name: z.string().min(2).optional(),
+  description: z.string().optional(),
+  department: z.string().optional(),
+  domain: z.string().optional(),
+  clubLeadId: z.union([z.string(), z.number()]).transform(Number).optional().nullable(),
 });
 
 /* ------------------------ Get All Clubs ------------------------ */
@@ -68,19 +76,61 @@ export const getClubById = async (req, res) => {
     const club = await prisma.club.findUnique({
       where: { id: clubId, isDeleted: false },
       include: {
-        college: { select: { id: true, name: true } },
+        college: { select: { id: true, name: true, code: true } },
+        creator: { select: { id: true, name: true, email: true } },
+        clubLead: { select: { id: true, name: true, email: true } },
+        domainLeads: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        achievements: {
+          include: {
+            member: { select: { id: true, name: true, email: true } },
+          },
+          orderBy: { achievedAt: 'desc' },
+        },
+        memberships: {
+          where: { status: 'APPROVED' },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
         events: {
           select: { id: true, title: true, dateTime: true, visibility: true },
           orderBy: { dateTime: 'desc' },
+        },
+        _count: {
+          select: {
+            memberships: true,
+            events: true,
+          },
         },
       },
     });
 
     if (!club) return res.status(404).json({ error: 'Club not found' });
 
+    // Calculate alumni count (members who have left)
+    const alumniCount = await prisma.clubMembership.count({
+      where: {
+        clubId,
+        status: 'LEFT',
+      },
+    });
+
+    // Format the response
+    const formattedClub = {
+      ...club,
+      memberCount: club._count.memberships,
+      eventCount: club._count.events,
+      alumniCount,
+      _count: undefined,
+    };
+
     return res.json({
       message: 'Club fetched successfully',
-      data: club,
+      data: formattedClub,
     });
   } catch (err) {
     console.error('❌ getClubById Error:', err);
@@ -101,12 +151,24 @@ export const createClub = async (req, res) => {
     if (!parsed.success)
       return res.status(400).json({ error: 'Invalid input', issues: parsed.error.format() });
 
-    const { name, collegeId } = parsed.data;
+    const { name, collegeId, description, department, domain, clubLeadId } = parsed.data;
     const createdBy = req.user.id;
 
     // Validate college
     const college = await prisma.college.findUnique({ where: { id: collegeId } });
     if (!college) return res.status(404).json({ error: 'College not found' });
+
+    // Validate clubLead if provided
+    if (clubLeadId) {
+      const clubLead = await prisma.user.findUnique({ 
+        where: { id: clubLeadId },
+        select: { id: true, collegeId: true },
+      });
+      if (!clubLead) return res.status(404).json({ error: 'Club lead user not found' });
+      if (clubLead.collegeId !== collegeId) {
+        return res.status(400).json({ error: 'Club lead must be from the same college' });
+      }
+    }
 
     // Prevent duplicates
     const duplicate = await prisma.club.findFirst({
@@ -126,6 +188,10 @@ export const createClub = async (req, res) => {
         name: name.trim(),
         collegeId,
         createdBy,
+        description: description?.trim() || null,
+        department: department?.trim() || null,
+        domain: domain?.trim() || null,
+        clubLeadId: clubLeadId || null,
       },
     });
 
@@ -155,6 +221,11 @@ export const updateClub = async (req, res) => {
     const club = await prisma.club.findUnique({ where: { id: clubId, isDeleted: false } });
     if (!club) return res.status(404).json({ error: 'Club not found' });
 
+    // Ownership check: only creator or admin can update
+    if (club.createdBy !== req.user.id && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'You can only update clubs you created' });
+    }
+
     // Prevent rename collision
     if (parsed.data.name) {
       const duplicate = await prisma.club.findFirst({
@@ -169,9 +240,32 @@ export const updateClub = async (req, res) => {
         return res.status(409).json({ error: 'Club name already exists in this college' });
     }
 
+    // Validate clubLead if provided
+    if (parsed.data.clubLeadId !== undefined) {
+      if (parsed.data.clubLeadId === null) {
+        // Allow clearing the club lead
+      } else {
+        const clubLead = await prisma.user.findUnique({ 
+          where: { id: parsed.data.clubLeadId },
+          select: { id: true, collegeId: true },
+        });
+        if (!clubLead) return res.status(404).json({ error: 'Club lead user not found' });
+        if (clubLead.collegeId !== club.collegeId) {
+          return res.status(400).json({ error: 'Club lead must be from the same college' });
+        }
+      }
+    }
+
+    const updateData = {};
+    if (parsed.data.name !== undefined) updateData.name = parsed.data.name.trim();
+    if (parsed.data.description !== undefined) updateData.description = parsed.data.description?.trim() || null;
+    if (parsed.data.department !== undefined) updateData.department = parsed.data.department?.trim() || null;
+    if (parsed.data.domain !== undefined) updateData.domain = parsed.data.domain?.trim() || null;
+    if (parsed.data.clubLeadId !== undefined) updateData.clubLeadId = parsed.data.clubLeadId || null;
+
     const updatedClub = await prisma.club.update({
       where: { id: clubId },
-      data: { name: parsed.data.name?.trim() },
+      data: updateData,
     });
 
     return res.json({
