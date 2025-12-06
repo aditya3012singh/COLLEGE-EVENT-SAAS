@@ -1,7 +1,9 @@
 // prisma/seed.js
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
+const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 12;
 
 async function main() {
   console.log("🌱 Seeding database...");
@@ -18,37 +20,40 @@ async function main() {
     },
   });
 
+  const admin1Password = await bcrypt.hash("admin123", BCRYPT_ROUNDS);
   const admin1 = await prisma.user.upsert({
     where: { email: "admin@kiet.edu" },
     update: {},
     create: {
       name: "Admin KIET",
       email: "admin@kiet.edu",
-      password: "securepassword",
+      password: admin1Password,
       role: "ADMIN",
       collegeId: college1.id,
     },
   });
 
+  const organizer1Password = await bcrypt.hash("organizer123", BCRYPT_ROUNDS);
   const organizer1 = await prisma.user.upsert({
     where: { email: "organizer@kiet.edu" },
     update: {},
     create: {
       name: "Organizer KIET",
       email: "organizer@kiet.edu",
-      password: "securepassword",
+      password: organizer1Password,
       role: "ORGANIZER",
       collegeId: college1.id,
     },
   });
 
+  const student1Password = await bcrypt.hash("student123", BCRYPT_ROUNDS);
   const student1 = await prisma.user.upsert({
     where: { email: "student@kiet.edu" },
     update: {},
     create: {
       name: "Student KIET",
       email: "student@kiet.edu",
-      password: "securepassword",
+      password: student1Password,
       role: "STUDENT",
       collegeId: college1.id,
     },
@@ -80,7 +85,7 @@ async function main() {
   });
 
   await prisma.registration.upsert({
-    where: { id: 1 },
+    where: { userId_eventId: { userId: student1.id, eventId: event1.id } },
     update: {},
     create: {
       userId: student1.id,
@@ -105,37 +110,40 @@ async function main() {
     },
   });
 
+  const admin2Password = await bcrypt.hash("admin123", BCRYPT_ROUNDS);
   const admin2 = await prisma.user.upsert({
     where: { email: "admin@abes.edu" },
     update: {},
     create: {
       name: "Admin ABES",
       email: "admin@abes.edu",
-      password: "securepassword",
+      password: admin2Password,
       role: "ADMIN",
       collegeId: college2.id,
     },
   });
 
+  const organizer2Password = await bcrypt.hash("organizer123", BCRYPT_ROUNDS);
   const organizer2 = await prisma.user.upsert({
     where: { email: "organizer@abes.edu" },
     update: {},
     create: {
       name: "Organizer ABES",
       email: "organizer@abes.edu",
-      password: "securepassword",
+      password: organizer2Password,
       role: "ORGANIZER",
       collegeId: college2.id,
     },
   });
 
+  const student2Password = await bcrypt.hash("student123", BCRYPT_ROUNDS);
   const student2 = await prisma.user.upsert({
     where: { email: "student@abes.edu" },
     update: {},
     create: {
       name: "Student ABES",
       email: "student@abes.edu",
-      password: "securepassword",
+      password: student2Password,
       role: "STUDENT",
       collegeId: college2.id,
     },
@@ -167,7 +175,7 @@ async function main() {
   });
 
   await prisma.registration.upsert({
-    where: { id: 2 },
+    where: { userId_eventId: { userId: student2.id, eventId: event2.id } },
     update: {},
     create: {
       userId: student2.id,

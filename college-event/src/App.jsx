@@ -23,7 +23,27 @@ function ProtectedRoute({ children, requireAuth = true, requireRole = null }) {
   const { verifying } = useSelector(selectAuthStatus);
 
   if (verifying) {
-    return <div style={{ textAlign: 'center', padding: '50px' }}>Loading...</div>;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        fontSize: '16px',
+        color: '#718096',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="loading-spinner" style={{ 
+            width: '40px', 
+            height: '40px', 
+            border: '4px solid #e2e8f0',
+            borderTopColor: '#667eea',
+            margin: '0 auto 16px',
+          }} />
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   if (requireAuth && !user) {
@@ -48,47 +68,96 @@ function Navigation() {
     navigate('/auth');
   };
 
+  const getRoleBadgeStyle = (role) => {
+    const colors = {
+      STUDENT: { bg: '#bee3f8', text: '#2c5282' },
+      ORGANIZER: { bg: '#fed7aa', text: '#c05621' },
+      ADMIN: { bg: '#fbb6ce', text: '#97266d' },
+    };
+    return colors[role] || colors.STUDENT;
+  };
+
+  if (!user) return null; // Don't show nav on auth page
+
+  const roleStyle = getRoleBadgeStyle(user?.role);
+
   return (
     <nav
       style={{
-        padding: '15px 20px',
-        backgroundColor: '#f8f9fa',
-        borderBottom: '1px solid #dee2e6',
-        marginBottom: '20px',
+        padding: '16px 20px',
+        backgroundColor: '#ffffff',
+        borderBottom: '1px solid #e2e8f0',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
       }}
     >
       <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <Link to="/" style={{ textDecoration: 'none', color: '#007bff', fontSize: '20px', fontWeight: 'bold' }}>
-            College Event SaaS
-          </Link>
-        </div>
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          {user ? (
-            <>
-              <span>Welcome, {user.name || user.email}</span>
-              <Link to="/" style={{ textDecoration: 'none', color: '#007bff' }}>
-                Dashboard
-              </Link>
-              <button
-                onClick={handleLogout}
-                style={{
-                  padding: '5px 15px',
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                }}
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <Link to="/auth" style={{ textDecoration: 'none', color: '#007bff' }}>
-              Login
-            </Link>
-          )}
+        <Link 
+          to="/" 
+          style={{ 
+            textDecoration: 'none', 
+            color: '#667eea', 
+            fontSize: '24px', 
+            fontWeight: '700',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          College Event SaaS
+        </Link>
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '12px',
+            paddingLeft: '20px',
+            borderLeft: '1px solid #e2e8f0',
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#1a202c' }}>
+                {user.name || user.email}
+              </span>
+              <span style={{ 
+                fontSize: '11px', 
+                padding: '2px 8px',
+                borderRadius: '12px',
+                backgroundColor: roleStyle.bg,
+                color: roleStyle.text,
+                textTransform: 'uppercase',
+                fontWeight: '600',
+                marginTop: '4px',
+              }}>
+                {user.role}
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#e53e3e',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#c53030';
+                e.target.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#e53e3e';
+                e.target.style.transform = 'translateY(0)';
+              }}
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
     </nav>
@@ -107,7 +176,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div style={{ minHeight: '100vh' }}>
+      <div style={{ minHeight: '100vh', backgroundColor: '#f7fafc' }}>
         <Navigation />
 
         <Routes>

@@ -30,6 +30,19 @@ export const fetchEventById = createAsyncThunk(
   }
 );
 
+// Fetch my events (organizer/admin)
+export const fetchMyEvents = createAsyncThunk(
+  'events/fetchMy',
+  async ({ page = 1, limit = 20 } = {}, { rejectWithValue }) => {
+    try {
+      const res = await api.get('/events/my', { params: { page, limit } });
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err?.response?.data || { error: 'Fetch my events failed' });
+    }
+  }
+);
+
 // Create a new event (organizer/admin)
 // payload: { title, description, dateTime, venue, clubId, visibility, allowedColleges, isPaid, price, currency }
 export const createEvent = createAsyncThunk(
@@ -77,6 +90,7 @@ export const deleteEvent = createAsyncThunk(
 const initialState = {
   items: [], // list of event objects
   current: null, // detailed event object
+  myEvents: [], // organizer's created events
   page: 1,
   limit: 10,
   total: 0,
@@ -87,6 +101,7 @@ const initialState = {
     creating: false,
     updating: false,
     deleting: false,
+    fetchingMy: false,
   },
   error: null,
 };
@@ -233,6 +248,23 @@ const eventsSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload || action.error;
       });
+
+    // fetchMyEvents
+    builder
+      .addCase(fetchMyEvents.pending, (state) => {
+        state.loadingMap.fetchingMy = true;
+        state.error = null;
+      })
+      .addCase(fetchMyEvents.fulfilled, (state, action) => {
+        state.loadingMap.fetchingMy = false;
+        const payload = action.payload || {};
+        const events = payload.data ?? payload.events ?? [];
+        state.myEvents = Array.isArray(events) ? events : [];
+      })
+      .addCase(fetchMyEvents.rejected, (state, action) => {
+        state.loadingMap.fetchingMy = false;
+        state.error = action.payload || action.error;
+      });
   },
 });
 
@@ -243,6 +275,7 @@ export const { clearEventsError, setCurrentEvent, clearCurrentEvent, applyLocalE
 // Selectors
 export const selectEventsState = (state) => state.events;
 export const selectEvents = (state) => state.events.items;
+export const selectMyEvents = (state) => state.events.myEvents;
 export const selectEventsMeta = (state) => ({
   page: state.events.page,
   limit: state.events.limit,

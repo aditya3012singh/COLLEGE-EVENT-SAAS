@@ -352,6 +352,62 @@ export const getEvents = async (req, res) => {
   }
 };
 
+/* ---------------------- GET MY EVENTS (Organizer/Admin) ---------------------- */
+export const getMyEvents = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(parseInt(limit), 100);
+    const skip = (pageNum - 1) * limitNum;
+
+    const [events, total] = await Promise.all([
+      prisma.event.findMany({
+        where: {
+          createdBy: userId,
+          isDeleted: false,
+        },
+        include: {
+          club: { select: { id: true, name: true } },
+          college: { select: { id: true, name: true, code: true } },
+          _count: { select: { registrations: true } },
+        },
+        orderBy: { dateTime: 'desc' },
+        skip,
+        take: limitNum,
+      }),
+      prisma.event.count({
+        where: {
+          createdBy: userId,
+          isDeleted: false,
+        },
+      }),
+    ]);
+
+    const formattedEvents = events.map((e) => ({
+      ...e,
+      registrationCount: e._count.registrations,
+      _count: undefined,
+    }));
+
+    return res.json({
+      message: 'Events fetched successfully',
+      data: formattedEvents,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (err) {
+    console.error('GetMyEvents error:', err);
+    return res.status(500).json({ error: 'Failed to fetch events' });
+  }
+};
+
 /* ---------------------- GET EVENT BY ID ---------------------- */
 export const getEventById = async (req, res) => {
   try {

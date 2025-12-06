@@ -232,6 +232,36 @@ export const getRegistrations = async (req, res) => {
   }
 };
 
+/* ---------------- Get current user's registrations (student view) ---------------- */
+export const getMyRegistrations = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const registrations = await prisma.registration.findMany({
+      where: { userId },
+      include: {
+        event: {
+          include: {
+            college: { select: { id: true, name: true, code: true } },
+            club: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return res.json({
+      message: 'Registrations fetched successfully',
+      data: registrations,
+      count: registrations.length,
+    });
+  } catch (err) {
+    console.error('GetMyRegistrations error:', err);
+    return res.status(500).json({ error: 'Failed to fetch registrations' });
+  }
+};
+
 /* ---------------- Razorpay webhook (IMPORTANT: use raw body) ---------------- */
 /**
  * Note: Razorpay requires verification of the raw request body. In Express, you must

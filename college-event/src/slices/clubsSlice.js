@@ -73,11 +73,79 @@ export const deleteClub = createAsyncThunk(
   }
 );
 
+// Get my club memberships (student)
+export const fetchMyMemberships = createAsyncThunk(
+  'clubs/fetchMyMemberships',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get('/clubs/my-memberships');
+      return res.data.data ?? res.data.memberships ?? [];
+    } catch (err) {
+      return rejectWithValue(err?.response?.data || { error: 'Fetch memberships failed' });
+    }
+  }
+);
+
+// Join a club (student registration)
+export const joinClub = createAsyncThunk(
+  'clubs/join',
+  async (clubId, { rejectWithValue }) => {
+    try {
+      const res = await api.post(`/clubs/${clubId}/join`);
+      return res.data.data ?? res.data.membership ?? res.data;
+    } catch (err) {
+      return rejectWithValue(err?.response?.data || { error: 'Join club failed' });
+    }
+  }
+);
+
+// Get my created clubs (organizer/admin)
+export const fetchMyClubs = createAsyncThunk(
+  'clubs/fetchMy',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get('/clubs/my');
+      return res.data.data ?? res.data.clubs ?? [];
+    } catch (err) {
+      return rejectWithValue(err?.response?.data || { error: 'Fetch my clubs failed' });
+    }
+  }
+);
+
+// Get club membership requests (organizer/admin)
+export const fetchMembershipRequests = createAsyncThunk(
+  'clubs/fetchMembershipRequests',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get('/clubs/membership-requests');
+      return res.data.data ?? res.data.requests ?? [];
+    } catch (err) {
+      return rejectWithValue(err?.response?.data || { error: 'Fetch membership requests failed' });
+    }
+  }
+);
+
+// Update membership status (approve/reject)
+export const updateMembershipStatus = createAsyncThunk(
+  'clubs/updateMembershipStatus',
+  async ({ membershipId, status }, { rejectWithValue }) => {
+    try {
+      const res = await api.put(`/clubs/memberships/${membershipId}`, { status });
+      return res.data.data ?? res.data;
+    } catch (err) {
+      return rejectWithValue(err?.response?.data || { error: 'Update membership status failed' });
+    }
+  }
+);
+
 /* -------------------- Slice -------------------- */
 
 const initialState = {
   items: [],
   current: null,
+  myMemberships: [], // Student's club memberships
+  myClubs: [], // Organizer's created clubs
+  membershipRequests: [], // Pending membership requests for organizer's clubs
   page: 1,
   limit: 20,
   total: 0,
@@ -88,6 +156,11 @@ const initialState = {
     creating: false,
     updating: false,
     deleting: false,
+    fetchingMemberships: false,
+    fetchingMyClubs: false,
+    fetchingRequests: false,
+    updatingMembership: false,
+    joining: false,
   },
   error: null,
 };
@@ -238,6 +311,90 @@ const clubsSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload ?? action.error;
       });
+
+    // fetchMyMemberships
+    builder
+      .addCase(fetchMyMemberships.pending, (state) => {
+        state.loadingMap.fetchingMemberships = true;
+        state.error = null;
+      })
+      .addCase(fetchMyMemberships.fulfilled, (state, action) => {
+        state.loadingMap.fetchingMemberships = false;
+        state.myMemberships = action.payload ?? [];
+      })
+      .addCase(fetchMyMemberships.rejected, (state, action) => {
+        state.loadingMap.fetchingMemberships = false;
+        state.error = action.payload ?? action.error;
+      });
+
+    // joinClub
+    builder
+      .addCase(joinClub.pending, (state) => {
+        state.loadingMap.joining = true;
+        state.error = null;
+      })
+      .addCase(joinClub.fulfilled, (state, action) => {
+        state.loadingMap.joining = false;
+        const membership = action.payload;
+        if (membership) {
+          // Add to memberships if not already there
+          const exists = state.myMemberships.find((m) => m.id === membership.id);
+          if (!exists) {
+            state.myMemberships.unshift(membership);
+          }
+        }
+      })
+      .addCase(joinClub.rejected, (state, action) => {
+        state.loadingMap.joining = false;
+        state.error = action.payload ?? action.error;
+      });
+
+    // fetchMyClubs
+    builder
+      .addCase(fetchMyClubs.pending, (state) => {
+        state.loadingMap.fetchingMyClubs = true;
+        state.error = null;
+      })
+      .addCase(fetchMyClubs.fulfilled, (state, action) => {
+        state.loadingMap.fetchingMyClubs = false;
+        state.myClubs = action.payload ?? [];
+      })
+      .addCase(fetchMyClubs.rejected, (state, action) => {
+        state.loadingMap.fetchingMyClubs = false;
+        state.error = action.payload ?? action.error;
+      });
+
+    // fetchMembershipRequests
+    builder
+      .addCase(fetchMembershipRequests.pending, (state) => {
+        state.loadingMap.fetchingRequests = true;
+        state.error = null;
+      })
+      .addCase(fetchMembershipRequests.fulfilled, (state, action) => {
+        state.loadingMap.fetchingRequests = false;
+        state.membershipRequests = action.payload ?? [];
+      })
+      .addCase(fetchMembershipRequests.rejected, (state, action) => {
+        state.loadingMap.fetchingRequests = false;
+        state.error = action.payload ?? action.error;
+      });
+
+    // updateMembershipStatus
+    builder
+      .addCase(updateMembershipStatus.pending, (state) => {
+        state.loadingMap.updatingMembership = true;
+        state.error = null;
+      })
+      .addCase(updateMembershipStatus.fulfilled, (state, action) => {
+        state.loadingMap.updatingMembership = false;
+        const updated = action.payload;
+        // Remove from requests if approved/rejected
+        state.membershipRequests = state.membershipRequests.filter((r) => r.id !== updated.id);
+      })
+      .addCase(updateMembershipStatus.rejected, (state, action) => {
+        state.loadingMap.updatingMembership = false;
+        state.error = action.payload ?? action.error;
+      });
   },
 });
 
@@ -261,6 +418,9 @@ export const selectClubsMeta = (state) => ({
   totalPages: state.clubs.totalPages,
 });
 export const selectCurrentClub = (state) => state.clubs.current;
+export const selectMyMemberships = (state) => state.clubs.myMemberships;
+export const selectMyClubs = (state) => state.clubs.myClubs;
+export const selectMembershipRequests = (state) => state.clubs.membershipRequests;
 export const selectClubsLoading = (state) => state.clubs.loadingMap;
 export const selectClubsError = (state) => state.clubs.error;
 

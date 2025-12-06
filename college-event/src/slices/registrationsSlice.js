@@ -47,6 +47,19 @@ export const checkInEvent = createAsyncThunk(
   }
 );
 
+// Fetch current user's registrations (student view)
+export const fetchMyRegistrations = createAsyncThunk(
+  'registrations/fetchMyRegistrations',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get('/registrations/my');
+      return res.data.data ?? res.data.registrations ?? [];
+    } catch (err) {
+      return rejectWithValue(err?.response?.data || { error: 'Fetch registrations failed' });
+    }
+  }
+);
+
 // Optional: fetch current user's registrations (student view)
 // NOTE: Backend route not implemented yet - keeping for future use
 // export const fetchMyRegistrations = createAsyncThunk(
@@ -67,10 +80,12 @@ export const checkInEvent = createAsyncThunk(
 
 const initialState = {
   items: [], // list of registrations (for event or user)
+  myRegistrations: [], // current user's registrations (student view)
   current: null, // single registration detail if needed
   status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   registering: false,
   checkingIn: false, // loading state for check-in
+  fetchingMy: false, // loading state for fetching my registrations
   lastCreated: null, // last created registration object
   lastOrder: null, // razorpay order if returned
   lastCheckIn: null, // last check-in result
@@ -172,6 +187,21 @@ const registrationsSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload || action.error;
       });
+
+    // fetchMyRegistrations
+    builder
+      .addCase(fetchMyRegistrations.pending, (state) => {
+        state.fetchingMy = true;
+        state.error = null;
+      })
+      .addCase(fetchMyRegistrations.fulfilled, (state, action) => {
+        state.fetchingMy = false;
+        state.myRegistrations = action.payload ?? [];
+      })
+      .addCase(fetchMyRegistrations.rejected, (state, action) => {
+        state.fetchingMy = false;
+        state.error = action.payload || action.error;
+      });
   },
 });
 
@@ -182,6 +212,7 @@ export const { clearRegistrationsError, clearLastCreated, removeRegistrationLoca
 
 export const selectRegistrationsState = (state) => state.registrations;
 export const selectRegistrations = (state) => state.registrations.items;
+export const selectMyRegistrations = (state) => state.registrations.myRegistrations;
 export const selectRegistrationById = (state, id) =>
   state.registrations.items.find((r) => r.id === id);
 export const selectLastCreatedRegistration = (state) => state.registrations.lastCreated;
