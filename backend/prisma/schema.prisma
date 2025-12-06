@@ -7,6 +7,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
+/* --- Enums --- */
 enum UserRole {
   STUDENT
   ORGANIZER
@@ -42,6 +43,15 @@ enum RecruitmentStatus {
   CLOSED
 }
 
+enum Currency {
+  INR
+  USD
+  EUR
+  // add others you need
+}
+
+/* --- Models --- */
+
 model College {
   id                   Int                    @id @default(autoincrement())
   name                 String
@@ -60,17 +70,18 @@ model Club {
   name         String
   collegeId    Int
   createdBy    Int                 // organizer who created the club (references User.id)
-  creator      User               @relation(fields: [createdBy], references: [id])
+  creator      User               @relation("UserCreatedClubs", fields: [createdBy], references: [id], onDelete: SetNull)
   description  String?
-  college      College            @relation(fields: [collegeId], references: [id])
+  college      College            @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   events       Event[]
   memberships  ClubMembership[]
   recruitments ClubRecruitment[]
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
+  isDeleted    Boolean            @default(false)
 
   @@index([collegeId])
-  User User[] @relation("creator")
+  @@index([createdBy])
 }
 
 model User {
@@ -80,7 +91,7 @@ model User {
   password             String
   role                 UserRole
   collegeId            Int
-  college              College        @relation(fields: [collegeId], references: [id])
+  college              College        @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   registrations        Registration[] @relation("EventRegistrant")
   scannedRegistrations Registration[] @relation("AttendanceScanner")
   memberships          ClubMembership[]
@@ -88,11 +99,14 @@ model User {
   updatedAt            DateTime       @updatedAt
 
   // Clubs created by this user (organizer)
-  createdClubs         Club[]         @relation("creator")
+  createdClubs         Club[]         @relation("UserCreatedClubs")
+
+  // extra auth/account fields
+  isEmailVerified      Boolean        @default(false)
+  emailVerifiedAt      DateTime?
+  deletedAt            DateTime?
 
   @@index([collegeId])
-  Event Event[]
-  Club Club[]
 }
 
 model Event {
@@ -102,30 +116,35 @@ model Event {
   dateTime        DateTime
   venue           String
   collegeId       Int
-  clubId          Int? // optional: if null, college-wide event
-  createdBy       Int  // organizer ID (references User.id)
-  creator         User @relation(fields: [createdBy], references: [id])
+  clubId          Int?                  // optional: if null, college-wide event
+  createdBy       Int                   // organizer ID (references User.id)
+  creator         User                  @relation("UserCreatedEvents", fields: [createdBy], references: [id], onDelete: SetNull)
   visibility      EventVisibility
   isPaid          Boolean               @default(false)
-  price           Int? // in smallest currency unit (paise for INR, cents for USD)
-  currency        String? // e.g., "INR", "USD"
-  college         College               @relation(fields: [collegeId], references: [id])
-  club            Club?                 @relation(fields: [clubId], references: [id])
+  price           Int?                  // in smallest currency unit (paise for INR, cents for USD)
+  currency        Currency?             // prefer enum for ISO codes
+  college         College               @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  club            Club?                 @relation(fields: [clubId], references: [id], onDelete: SetNull)
   registrations   Registration[]
   allowedColleges EventAllowedCollege[]
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
+  isDeleted       Boolean               @default(false)
 
   @@index([collegeId])
   @@index([clubId])
+  @@index([dateTime])
+  @@index([visibility])
+  @@index([isPaid])
+  @@index([createdBy])
 }
 
 model EventAllowedCollege {
   id        Int      @id @default(autoincrement())
   eventId   Int
   collegeId Int
-  event     Event    @relation(fields: [eventId], references: [id])
-  college   College  @relation(fields: [collegeId], references: [id])
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  college   College  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, collegeId])
   @@index([eventId])
@@ -133,30 +152,35 @@ model EventAllowedCollege {
 }
 
 model Registration {
-  id             Int             @id @default(autoincrement())
-  userId         Int
-  eventId        Int
-  qrPayload      String? // signed QR token for scanning
-  qrImageUrl     String?
-  attended       Boolean         @default(false)
-  scannedAt      DateTime? // timestamp when QR was scanned for attendance
-  scannedBy      Int? // organizer/admin user ID who scanned the QR
-  scanner        User?           @relation("AttendanceScanner", fields: [scannedBy], references: [id])
-  paidAmount     Int?
-  currency       String?
-  paymentGateway PaymentGateway?
-  paymentId      String? // gateway order/session id
-  paymentStatus  PaymentStatus?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  user           User            @relation("EventRegistrant", fields: [userId], references: [id])
-  event          Event           @relation(fields: [eventId], references: [id])
+  id                Int             @id @default(autoincrement())
+  userId            Int
+  eventId           Int
+  qrPayload         String?         // signed QR token id (not raw secret)
+  qrImageUrl        String?
+  attended          Boolean         @default(false)
+  scannedAt         DateTime?       // timestamp when QR was scanned for attendance
+  scannedBy         Int?            // organizer/admin user ID who scanned the QR
+  scanner           User?           @relation("AttendanceScanner", fields: [scannedBy], references: [id], onDelete: SetNull)
+  paidAmount        Int?
+  currency          Currency?
+  paymentGateway    PaymentGateway?
+  paymentId         String?         // gateway order/session id
+  paymentStatus     PaymentStatus?
+  paymentAttemptedAt DateTime?
+  paymentConfirmedAt DateTime?
+  paymentFailureReason String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  user              User            @relation("EventRegistrant", fields: [userId], references: [id], onDelete: Cascade)
+  event             Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId])
   @@index([userId])
   @@index([eventId])
   @@index([attended])
   @@index([scannedAt])
+  @@index([paymentStatus])
+  @@index([paymentId])
 }
 
 model ClubMembership {
@@ -166,8 +190,8 @@ model ClubMembership {
   status     ClubMembershipStatus @default(PENDING)
   joinedAt   DateTime?
   leftAt     DateTime?
-  user       User                 @relation(fields: [userId], references: [id])
-  club       Club                 @relation(fields: [clubId], references: [id])
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club       Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
 
@@ -185,12 +209,47 @@ model ClubRecruitment {
   status      RecruitmentStatus @default(OPEN)
   startDate   DateTime
   endDate     DateTime?
-  requirements String? // e.g., "Open to all students", "Second year and above"
-  club        Club             @relation(fields: [clubId], references: [id])
+  requirements String? // e.g., "Open to all students"
+  club        Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
   @@index([clubId])
   @@index([status])
   @@index([startDate])
+}
+
+/* --- Additional utility models --- */
+
+model RefreshToken {
+  id          Int      @id @default(autoincrement())
+  token       String   @unique
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  revoked     Boolean  @default(false)
+
+  @@index([userId])
+}
+
+model EmailVerification {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  token      String   @unique
+  expiresAt  DateTime
+  used       Boolean  @default(false)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  actorId    Int?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  targetType String?
+  targetId   Int?
+  payload    Json?
+  createdAt  DateTime @default(now())
 }

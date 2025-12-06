@@ -1,114 +1,122 @@
+// controllers/college.js
 import { PrismaClient } from '@prisma/client';
+import { z } from 'zod';
+
 const prisma = new PrismaClient();
 
-/**
- * ✅ Create College
- */
+/* ---------------- Validation Schemas ---------------- */
+const createCollegeSchema = z.object({
+  name: z.string().min(2),
+  code: z.string().min(2),
+  logo: z.string().url().optional().nullable(),
+});
+
+const listCollegesSchema = z.object({
+  limit: z.union([z.string(), z.number()]).optional().transform((v) => (v ? Number(v) : 100)),
+  skip: z.union([z.string(), z.number()]).optional().transform((v) => (v ? Number(v) : 0)),
+});
+
+const updateCollegeSchema = z.object({
+  name: z.string().min(2).optional(),
+  code: z.string().min(2).optional(),
+  logo: z.string().url().optional().nullable(),
+});
+
+/* ---------------- Helpers ---------------- */
+const MAX_LIMIT = 200;
+
+function normalizeCode(code) {
+  return String(code).toUpperCase().trim();
+}
+
+/* ---------------- Create College (ADMIN only) ---------------- */
 export const createCollege = async (req, res) => {
   try {
-    const { name, code, logo } = req.body;
-
-    if (!name || !code) {
-      return res.status(400).json({
-        error: 'Missing required fields',
-        required: ['name', 'code'],
-      });
+    // role guard
+    if (!req.user || req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only admins can create colleges' });
     }
 
-    const normalizedName = name.trim();
-    const normalizedCode = code.toUpperCase().trim();
+    const parsed = createCollegeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid input', issues: parsed.error.format() });
+    }
 
-    // Check for existing college by code
-    const existingCollege = await prisma.college.findUnique({
-      where: { code: normalizedCode },
-    });
+    const { name, code, logo } = parsed.data;
+    const normalizedCode = normalizeCode(code);
 
-    if (existingCollege) {
-      return res.status(409).json({
-        error: 'College code already exists',
-        message: 'A college with this code already exists',
-      });
+    // uniqueness check
+    const existing = await prisma.college.findUnique({ where: { code: normalizedCode } });
+    if (existing) {
+      return res.status(409).json({ error: 'College code already exists' });
     }
 
     const college = await prisma.college.create({
       data: {
-        name: normalizedName,
+        name: name.trim(),
         code: normalizedCode,
-        logo: logo?.trim() || null,
+        logo: logo ?? null,
       },
-      select: {
-        id: true,
-        name: true,
-        code: true,
-        logo: true,
-        createdAt: true,
-      },
+      select: { id: true, name: true, code: true, logo: true, createdAt: true },
     });
 
-    res.status(201).json({
-      message: 'College created successfully',
-      college,
-    });
+    return res.status(201).json({ message: 'College created successfully', college });
   } catch (err) {
-    if (err.code === 'P2002') {
+    console.error('Create college error:', err);
+    if (err?.code === 'P2002') {
       return res.status(409).json({ error: 'College code must be unique' });
     }
-
-    console.error('Create college error:', err);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to create college',
-      message:
-        process.env.NODE_ENV === 'development'
-          ? err.message
-          : 'An internal server error occurred',
+      message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
     });
   }
 };
 
-/**
- * ✅ Get All Colleges
- */
+/* ---------------- Get All Colleges ---------------- */
 export const getAllColleges = async (req, res) => {
   try {
-    const { limit = 100, skip = 0 } = req.query;
+    const parsed = listCollegesSchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid query params', issues: parsed.error.format() });
+    }
 
-    const colleges = await prisma.college.findMany({
-      skip: Number(skip),
-      take: Math.min(Number(limit), 100),
-      select: {
-        id: true,
-        name: true,
-        code: true,
-        logo: true,
-        createdAt: true,
-      },
-      orderBy: { name: 'asc' },
-    });
+    let { limit, skip } = parsed.data;
+    limit = Math.min(limit || 100, MAX_LIMIT);
+    skip = Math.max(0, skip || 0);
 
-    res.status(200).json({
+    const [colleges, total] = await Promise.all([
+      prisma.college.findMany({
+        where: { isDeleted: false },
+        skip,
+        take: limit,
+        select: { id: true, name: true, code: true, logo: true, createdAt: true },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.college.count({ where: { isDeleted: false } }),
+    ]);
+
+    return res.status(200).json({
       message: 'Colleges retrieved successfully',
       count: colleges.length,
+      total,
       colleges,
+      pagination: { skip, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (err) {
     console.error('Get all colleges error:', err);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to fetch colleges',
-      message:
-        process.env.NODE_ENV === 'development'
-          ? err.message
-          : 'An internal server error occurred',
+      message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
     });
   }
 };
 
-/**
- * ✅ Get College by ID (includes clubs & events)
- */
+/* ---------------- Get College By ID (includes clubs + events) ---------------- */
 export const getCollegeById = async (req, res) => {
   try {
     const collegeId = Number(req.params.id);
-    if (!collegeId || isNaN(collegeId) || collegeId <= 0) {
+    if (!collegeId || Number.isNaN(collegeId) || collegeId <= 0) {
       return res.status(400).json({ error: 'Invalid college ID' });
     }
 
@@ -120,16 +128,13 @@ export const getCollegeById = async (req, res) => {
         code: true,
         logo: true,
         createdAt: true,
+        // only non-deleted clubs/events
         clubs: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            createdBy: true,
-            createdAt: true,
-          },
+          where: { isDeleted: false },
+          select: { id: true, name: true, description: true, createdBy: true, createdAt: true },
         },
         events: {
+          where: { isDeleted: false },
           select: {
             id: true,
             title: true,
@@ -146,141 +151,104 @@ export const getCollegeById = async (req, res) => {
       },
     });
 
-    if (!college) {
-      return res.status(404).json({ error: 'College not found' });
-    }
+    if (!college) return res.status(404).json({ error: 'College not found' });
 
-    res.status(200).json({
-      message: 'College fetched successfully',
-      college,
-    });
+    return res.status(200).json({ message: 'College fetched successfully', college });
   } catch (err) {
     console.error('Get college by ID error:', err);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to fetch college details',
-      message:
-        process.env.NODE_ENV === 'development'
-          ? err.message
-          : 'An internal server error occurred',
+      message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
     });
   }
 };
 
-/**
- * ✅ Update College
- */
+/* ---------------- Update College (ADMIN only) ---------------- */
 export const updateCollege = async (req, res) => {
   try {
-    const collegeId = Number(req.params.id);
-    const { name, code, logo } = req.body;
+    if (!req.user || req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only admins can update colleges' });
+    }
 
-    if (!collegeId || isNaN(collegeId) || collegeId <= 0) {
+    const collegeId = Number(req.params.id);
+    if (!collegeId || Number.isNaN(collegeId) || collegeId <= 0) {
       return res.status(400).json({ error: 'Invalid college ID' });
     }
 
-    if (!name || !code) {
-      return res.status(400).json({
-        error: 'Missing required fields',
-        required: ['name', 'code'],
-      });
-    }
+    const parsed = updateCollegeSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid input', issues: parsed.error.format() });
 
-    const existingCollege = await prisma.college.findUnique({
-      where: { id: collegeId },
-    });
+    const existing = await prisma.college.findUnique({ where: { id: collegeId } });
+    if (!existing) return res.status(404).json({ error: 'College not found' });
 
-    if (!existingCollege)
-      return res.status(404).json({ error: 'College not found' });
-
-    const normalizedCode = code.toUpperCase().trim();
-
-    // Check for unique code if changed
-    if (normalizedCode !== existingCollege.code) {
-      const codeExists = await prisma.college.findUnique({
-        where: { code: normalizedCode },
-      });
-      if (codeExists) {
-        return res.status(409).json({ error: 'College code already exists' });
+    const data = {};
+    if (parsed.data.name) data.name = parsed.data.name.trim();
+    if (parsed.data.logo !== undefined) data.logo = parsed.data.logo ?? null;
+    if (parsed.data.code) {
+      const normalizedCode = normalizeCode(parsed.data.code);
+      if (normalizedCode !== existing.code) {
+        // check uniqueness
+        const codeExists = await prisma.college.findUnique({ where: { code: normalizedCode } });
+        if (codeExists) return res.status(409).json({ error: 'College code already exists' });
       }
+      data.code = normalizedCode;
     }
 
-    const updatedCollege = await prisma.college.update({
+    const updated = await prisma.college.update({
       where: { id: collegeId },
-      data: {
-        name: name.trim(),
-        code: normalizedCode,
-        ...(logo && { logo: logo.trim() }),
-      },
-      select: {
-        id: true,
-        name: true,
-        code: true,
-        logo: true,
-        createdAt: true,
-      },
+      data,
+      select: { id: true, name: true, code: true, logo: true, createdAt: true },
     });
 
-    return res.status(200).json({
-      message: 'College updated successfully',
-      college: updatedCollege,
-    });
+    return res.status(200).json({ message: 'College updated successfully', college: updated });
   } catch (err) {
     console.error('Update college error:', err);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to update college',
-      message:
-        process.env.NODE_ENV === 'development'
-          ? err.message
-          : 'An internal server error occurred',
+      message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
     });
   }
 };
 
-/**
- * ✅ Delete College (with FK constraint handling)
- */
+/* ---------------- Delete College (soft delete recommended) ---------------- */
 export const deleteCollege = async (req, res) => {
   try {
-    const collegeId = Number(req.params.id);
+    // only admins
+    if (!req.user || req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only admins can delete colleges' });
+    }
 
-    if (!collegeId || isNaN(collegeId) || collegeId <= 0) {
+    const collegeId = Number(req.params.id);
+    if (!collegeId || Number.isNaN(collegeId) || collegeId <= 0) {
       return res.status(400).json({ error: 'Invalid college ID' });
     }
 
-    const existingCollege = await prisma.college.findUnique({
-      where: { id: collegeId },
-    });
+    const existing = await prisma.college.findUnique({ where: { id: collegeId } });
+    if (!existing) return res.status(404).json({ error: 'College not found' });
 
-    if (!existingCollege)
-      return res.status(404).json({ error: 'College not found' });
-
-    try {
-      const deletedCollege = await prisma.college.delete({
-        where: { id: collegeId },
-        select: { id: true, name: true, code: true },
-      });
-
-      return res.status(200).json({
-        message: 'College deleted successfully',
-        college: deletedCollege,
-      });
-    } catch (prismaErr) {
-      if (prismaErr.code === 'P2003') {
-        return res.status(409).json({
-          error:
-            'Cannot delete college with associated records (clubs, events, or users)',
-        });
+    // If you want strict FK check: attempt delete and handle P2003
+    // Prefer soft delete if isDeleted field exists:
+    if (existing.isDeleted === undefined) {
+      // no soft-delete field available: attempt hard delete
+      try {
+        const deleted = await prisma.college.delete({ where: { id: collegeId }, select: { id: true, name: true, code: true } });
+        return res.status(200).json({ message: 'College deleted successfully', college: deleted });
+      } catch (prismaErr) {
+        if (prismaErr?.code === 'P2003') {
+          return res.status(409).json({ error: 'Cannot delete college with associated records (users, clubs, events)' });
+        }
+        throw prismaErr;
       }
-      throw prismaErr;
+    } else {
+      // Soft delete path
+      await prisma.college.update({ where: { id: collegeId }, data: { isDeleted: true } });
+      return res.status(200).json({ message: 'College deleted (soft) successfully' });
     }
   } catch (err) {
     console.error('Delete college error:', err);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to delete college',
-      message:
-        process.env.NODE_ENV === 'development'
-          ? err.message
-          : 'An internal server error occurred',
+      message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
     });
   }
 };
