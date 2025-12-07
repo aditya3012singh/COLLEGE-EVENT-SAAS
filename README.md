@@ -1,9 +1,9 @@
-College Events SaaS Platform
+**College Events SaaS Platform**
 
 A full-stack SaaS platform for managing college events, clubs, registrations, and payments. Supports multi-college onboarding with separate admin panels.
 
-Features
-Admin Features
+**Features
+Admin Features**
 
 Create, edit, publish, and delete events
 
@@ -17,34 +17,34 @@ Export registration details
 
 Manage student and staff roles
 
-Student Features
+**Student Features**
 
 View upcoming, ongoing, and past events
 
 Event detail pages with posters, description, venue, timings, and fees
 
-Event registration (free or paid)
+Register for free or paid events
 
 Online payment integration
 
-Registration history
+View registration history
 
 Join clubs and participate
 
 Update profile
-
-SaaS Platform Features
+**
+SaaS Platform Features**
 
 Multi-college support
 
 Each college receives its own admin portal
 
-College onboarding
+College onboarding system
 
 Subscription plan support
-
+**
 Tech Stack
-Backend
+Backend**
 
 Node.js
 
@@ -56,11 +56,11 @@ Prisma ORM
 
 JWT Authentication
 
-Multer or cloud storage
+Multer or Cloud Storage
 
 Razorpay or Stripe (optional)
-
-Frontend
+**
+Frontend**
 
 React or Next.js
 
@@ -68,15 +68,15 @@ Redux Toolkit
 
 TailwindCSS
 
-Axios
+**Axios
 
 DevOps
-
-Docker (optional)
+**
+Docker 
 
 Render, Railway, or Vercel for deployment
-
-Project Structure
+**
+Project Structure**
 root/
  ├── backend/
  │    ├── src/
@@ -99,33 +99,7 @@ root/
 
  └── README.md
 
-API Overview
-Authentication
-Method	Endpoint	Description
-POST	/auth/register	Register a user or college
-POST	/auth/login	Login and receive JWT
-GET	/auth/me	Get logged-in user
-Events
-Method	Endpoint	Description
-GET	/events	Get all events
-GET	/events/:id	Get event details
-POST	/events	Create event (admin)
-PUT	/events/:id	Update event
-DELETE	/events/:id	Delete event
-Clubs
-Method	Endpoint	Description
-GET	/clubs	List all clubs
-POST	/clubs	Create club (admin)
-Registrations
-Method	Endpoint	Description
-POST	/events/:id/register	Register for an event
-GET	/registrations/user	Registrations of a user
-GET	/registrations/event/:id	Admin view for event registrations
-Payments
-Method	Endpoint	Description
-POST	/payment/create-order	Create payment order
-POST	/payment/verify	Verify payment
-Setup Instructions
+**Setup Instructions**
 1. Clone the Repository
 git clone https://github.com/yourname/college-events-saas.git
 cd college-events-saas
@@ -151,18 +125,18 @@ npm install
 
 6. Start Development Servers
 
-Frontend:
+Frontend
 
 npm run dev
 
 
-Backend:
+Backend
 
 npm start
 
 Future Improvements
 
-Theme customization for each college
+Theme customization per college
 
 QR-based check-in system
 
@@ -172,7 +146,7 @@ AI-generated event recommendations
 
 Advanced admin dashboards
 
-Contributing
+**Contributing**
 
 Pull requests are welcome.
-For major changes, open an issue before starting.
+For major changes, please open an issue before starting.
