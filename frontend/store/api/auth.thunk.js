@@ -1,0 +1,87 @@
+import { createAsyncThunk } from "@reduxjs/toolkit";
+import api from "@/lib/axios";
+
+// Register user
+export const register = createAsyncThunk(
+  "auth/register",
+  async (userData, { rejectWithValue }) => {
+    try {
+      const response = await api.post("/auth/register", userData);
+      const { token, user } = response.data.data;
+      
+      // Save token to localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("authToken", token);
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+      
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.error || { message: "Registration failed" }
+      );
+    }
+  }
+);
+
+// Login user
+export const login = createAsyncThunk(
+  "auth/login",
+  async (credentials, { rejectWithValue }) => {
+    try {
+      const response = await api.post("/auth/login", credentials);
+      const { token, user } = response.data.data;
+      
+      // Save token to localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("authToken", token);
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+      
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.error || { message: "Login failed" }
+      );
+    }
+  }
+);
+
+// Get current user
+export const getCurrentUser = createAsyncThunk(
+  "auth/me",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get("/auth/me");
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.error || { message: "Failed to fetch user" }
+      );
+    }
+  }
+);
+
+// Verify token
+export const verifyToken = createAsyncThunk(
+  "auth/verify",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get("/auth/verify");
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.error || { message: "Token verification failed" }
+      );
+    }
+  }
+);
+
+// Logout
+export const logout = createAsyncThunk("auth/logout", async () => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
+  }
+  return null;
+});
