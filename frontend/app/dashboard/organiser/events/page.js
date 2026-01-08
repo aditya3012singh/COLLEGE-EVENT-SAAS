@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import Link from "next/link";
-import { getEvents } from "@/store/api/event.thunk";
+import { getAllEvents } from "@/store";
+
 
 export default function OrganiserEventsPage() {
   const dispatch = useDispatch();
@@ -12,7 +13,7 @@ export default function OrganiserEventsPage() {
   const [filteredEvents, setFilteredEvents] = useState([]);
 
   useEffect(() => {
-    dispatch(getEvents());
+    dispatch(getAllEvents());
   }, [dispatch]);
 
   useEffect(() => {
