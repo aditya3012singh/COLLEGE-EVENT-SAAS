@@ -4,25 +4,35 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default function CreateRecruitmentPage() {
+export default function EditAchievementPage() {
   const params = useParams();
   const router = useRouter();
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    positions: 1,
-    deadline: "",
-    requirements: "",
-    salary: "",
+    date: "",
+    category: "award",
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setTimeout(() => {
+      setFormData({
+        title: "Sample Achievement",
+        description: "This is a sample achievement",
+        date: "2025-01-08",
+        category: "award",
+      });
+      setLoading(false);
+    }, 300);
+  }, [params.achievementId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "positions" ? parseInt(value) || 1 : value,
+      [name]: value,
     }));
     setError("");
   };
@@ -34,36 +44,39 @@ export default function CreateRecruitmentPage() {
 
     try {
       if (!formData.title.trim()) {
-        setError("Position title is required");
-        return;
-      }
-
-      if (!formData.deadline) {
-        setError("Application deadline is required");
+        setError("Achievement title is required");
         return;
       }
 
       await new Promise((resolve) => setTimeout(resolve, 500));
-      router.push(`/dashboard/organiser/clubs/${params.id}/recruitment`);
+      router.push(`/dashboard/organiser/clubs/${params.id}/achievements`);
     } catch (err) {
-      setError("Failed to create recruitment. Please try again.");
+      setError("Failed to update achievement. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
         <Link
-          href={`/dashboard/organiser/clubs/${params.id}/recruitment`}
+          href={`/dashboard/organiser/clubs/${params.id}/achievements`}
           className="text-green-600 hover:text-green-700"
         >
-          ← Back to Recruitments
+          ← Back to Achievements
         </Link>
       </div>
 
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Create New Recruitment</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Edit Achievement</h1>
 
       <div className="bg-white rounded-lg shadow p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -75,14 +88,13 @@ export default function CreateRecruitmentPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Position Title *
+              Achievement Title *
             </label>
             <input
               type="text"
               name="title"
               value={formData.title}
               onChange={handleChange}
-              placeholder="e.g., Software Developer"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500"
               required
             />
@@ -90,13 +102,12 @@ export default function CreateRecruitmentPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Job Description
+              Description
             </label>
             <textarea
               name="description"
               value={formData.description}
               onChange={handleChange}
-              placeholder="Describe the position and responsibilities..."
               rows={4}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500"
             />
@@ -105,64 +116,39 @@ export default function CreateRecruitmentPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Number of Positions
-              </label>
-              <input
-                type="number"
-                name="positions"
-                min="1"
-                value={formData.positions}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Application Deadline *
+                Date *
               </label>
               <input
                 type="date"
-                name="deadline"
-                value={formData.deadline}
+                name="date"
+                value={formData.date}
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500"
                 required
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Requirements
-            </label>
-            <textarea
-              name="requirements"
-              value={formData.requirements}
-              onChange={handleChange}
-              placeholder="List the requirements and qualifications..."
-              rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Salary Range
-            </label>
-            <input
-              type="text"
-              name="salary"
-              value={formData.salary}
-              onChange={handleChange}
-              placeholder="e.g., $50,000 - $80,000 per year"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category
+              </label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500"
+              >
+                <option value="award">Award</option>
+                <option value="event">Event Success</option>
+                <option value="participation">Participation</option>
+                <option value="milestone">Milestone</option>
+              </select>
+            </div>
           </div>
 
           <div className="flex gap-4 justify-end pt-4">
             <Link
-              href={`/dashboard/organiser/clubs/${params.id}/recruitment`}
+              href={`/dashboard/organiser/clubs/${params.id}/achievements`}
               className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
             >
               Cancel
@@ -172,7 +158,7 @@ export default function CreateRecruitmentPage() {
               disabled={loading}
               className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
             >
-              {loading ? "Creating..." : "Create Recruitment"}
+              {loading ? "Updating..." : "Update Achievement"}
             </button>
           </div>
         </form>
