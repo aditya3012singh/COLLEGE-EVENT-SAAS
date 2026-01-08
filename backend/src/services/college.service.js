@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { z } from 'zod';
 
 /* ---------- Validation Schemas ---------- */
 const createCollegeSchema = z.object({

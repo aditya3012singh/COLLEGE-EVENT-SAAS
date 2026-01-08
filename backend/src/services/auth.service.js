@@ -1,11 +1,11 @@
 import prisma from '../utils/prisma.js';
 import bcrypt from 'bcrypt';
-import { generateAccessToken } from '../utils/jwt.js';
+import { z } from 'zod';
+import { generateAccessToken, verifyAccessToken } from '../utils/jwt.js';
 import { getEnv } from '../utils/env.js';
 
 /* ---------- Config ---------- */
-const BCRYPT_ROUNDS = getEnv('BCRYPT_ROUNDS', '12');
-const { jwtSecret: JWT_SECRET, jwtExpiresIn: JWT_EXPIRES_IN } = require('../utils/env.js').getEnvConfig?.() || {};
+const BCRYPT_ROUNDS = Number(getEnv('BCRYPT_ROUNDS', '12'));
 
 /* ---------- Validation Schemas ---------- */
 const registerSchema = z.object({
@@ -22,10 +22,7 @@ const loginSchema = z.object({
 });
 
 /* ---------- Helpers ---------- */
-function makeAccessToken(payload) {
-  if (!JWT_SECRET) return null;
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-}
+// Token generation is centralized in utils/jwt.js (generateAccessToken)
 
 /* ---------- Register Service ---------- */
 export const registerService = async (data) => {
@@ -80,7 +77,7 @@ export const registerService = async (data) => {
     },
   });
 
-  const token = makeAccessToken({
+  const token = generateAccessToken({
     sub: user.id,
     role: user.role,
     collegeId: user.collegeId,
@@ -100,7 +97,7 @@ export const loginService = async (data) => {
       issues: parsed.error.format(),
     };
   }
-
+  console.log('Login attempt for:', parsed.data.email);
   const { email, password } = parsed.data;
   const normalizedEmail = email.toLowerCase().trim();
 
@@ -128,7 +125,7 @@ export const loginService = async (data) => {
     throw { status: 401, message: 'Invalid email or password' };
   }
 
-  const token = makeAccessToken({
+  const token = generateAccessToken({
     sub: user.id,
     role: user.role,
     collegeId: user.collegeId,
@@ -141,15 +138,12 @@ export const loginService = async (data) => {
 
 /* ---------- Verify Token Service ---------- */
 export const verifyTokenService = (token) => {
-  if (!JWT_SECRET) {
-    throw { status: 500, message: 'JWT not configured' };
-  }
-
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = verifyAccessToken(token);
     return { valid: true, decoded };
   } catch (e) {
-    throw { status: 401, message: 'Invalid or expired token' };
+    const message = e?.message || 'Invalid or expired token';
+    throw { status: 401, message };
   }
 };
 

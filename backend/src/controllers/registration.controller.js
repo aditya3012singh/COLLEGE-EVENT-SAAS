@@ -1,9 +1,9 @@
 import {
-  registerEventService,
+  registerForEventService,
   checkInEventService,
-  razorpayWebhookService,
-  getRegistrationDetailsService,
-  cancelRegistrationService,
+  getRegistrationsService,
+  getMyRegistrationsService,
+  handleRazorpayWebhookService,
 } from '../services/registration.service.js';
 
 /**
@@ -11,7 +11,7 @@ import {
  */
 export const registerEventController = async (req, res) => {
   try {
-    const registration = await registerEventService(req.body, req.user.id, req.user.collegeId);
+    const registration = await registerForEventService(req.body, req.user.id);
     return res.status(201).json({
       message: 'Registration created successfully',
       data: registration,
@@ -49,8 +49,8 @@ export const checkInEventController = async (req, res) => {
  */
 export const razorpayWebhookController = async (req, res) => {
   try {
-    const result = await razorpayWebhookService(req.body);
-    return res.status(result.status).json(result.data);
+    const result = await handleRazorpayWebhookService(req.rawBody, req.headers['x-razorpay-signature']);
+    return res.status(200).json(result);
   } catch (err) {
     console.error('razorpayWebhook Error:', err);
     if (err?.status) {
@@ -63,37 +63,37 @@ export const razorpayWebhookController = async (req, res) => {
 /**
  * Get registration details
  */
-export const getRegistrationDetailsController = async (req, res) => {
+export const getRegistrationsController = async (req, res) => {
   try {
-    const registration = await getRegistrationDetailsService(req.params.id);
+    const registrations = await getRegistrationsService(req.params.eventId);
     return res.json({
-      message: 'Registration details fetched successfully',
-      data: registration,
+      message: 'Registrations fetched successfully',
+      data: registrations,
     });
   } catch (err) {
-    console.error('getRegistrationDetails Error:', err);
+    console.error('getRegistrations Error:', err);
     if (err?.status) {
       return res.status(err.status).json({ error: err.message });
     }
-    return res.status(500).json({ error: 'Failed to fetch registration details' });
+    return res.status(500).json({ error: 'Failed to fetch registrations' });
   }
 };
 
 /**
  * Cancel registration
  */
-export const cancelRegistrationController = async (req, res) => {
+export const getMyRegistrationsController = async (req, res) => {
   try {
-    const registration = await cancelRegistrationService(req.params.id, req.user.id, req.user.role);
+    const registrations = await getMyRegistrationsService(req.user.id);
     return res.json({
-      message: 'Registration cancelled successfully',
-      data: registration,
+      message: 'My registrations fetched successfully',
+      data: registrations,
     });
   } catch (err) {
-    console.error('cancelRegistration Error:', err);
+    console.error('getMyRegistrations Error:', err);
     if (err?.status) {
       return res.status(err.status).json({ error: err.message });
     }
-    return res.status(500).json({ error: 'Failed to cancel registration' });
+    return res.status(500).json({ error: 'Failed to fetch my registrations' });
   }
 };

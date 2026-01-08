@@ -60,7 +60,7 @@ export const getEnvConfig = () => {
     jwtSecret: process.env.JWT_SECRET,
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1h',
     bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '12', 10),
-    frontendOrigin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
+    frontendOrigin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
     razorpayKeyId: process.env.RAZORPAY_KEY_ID || '',
     razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || '',
     databaseUrl: process.env.DATABASE_URL,

@@ -51,7 +51,7 @@ export const loginController = async (req, res) => {
       maxAge: 3600000, // 1 hour in milliseconds
       path: '/',
     });
-    
+   
     return res.json({ message: 'Login successful', user });
   } catch (err) {
     console.error('Login error:', err);

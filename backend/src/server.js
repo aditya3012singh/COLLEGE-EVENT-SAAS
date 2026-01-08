@@ -21,7 +21,7 @@ const config = getEnvConfig();
 // Security + basic middleware
 app.use(helmet());
 app.use(cors({ 
-  origin: config.frontendOrigin, 
+  origin: config.frontendOrigin || "http://localhost:3000",
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

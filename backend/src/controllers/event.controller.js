@@ -1,10 +1,10 @@
 import {
-  getAllEventsService,
+  getEventsService,
+  getMyEventsService,
   getEventByIdService,
   createEventService,
   updateEventService,
   deleteEventService,
-  updateEventVisibilityService,
 } from '../services/event.service.js';
 
 /**
@@ -12,7 +12,7 @@ import {
  */
 export const getAllEventsController = async (req, res) => {
   try {
-    const result = await getAllEventsService(req.query);
+    const result = await getEventsService(req.query, req.user.collegeId);
     return res.json({
       message: 'Events fetched successfully',
       data: result.events,
@@ -20,6 +20,9 @@ export const getAllEventsController = async (req, res) => {
     });
   } catch (err) {
     console.error('getAllEvents Error:', err);
+    if (err?.status) {
+      return res.status(err.status).json({ error: err.message });
+    }
     return res.status(500).json({ error: 'Failed to fetch events' });
   }
 };
@@ -29,7 +32,7 @@ export const getAllEventsController = async (req, res) => {
  */
 export const getEventByIdController = async (req, res) => {
   try {
-    const event = await getEventByIdService(req.params.id);
+    const event = await getEventByIdService(req.params.id, req.user.collegeId);
     return res.json({
       message: 'Event fetched successfully',
       data: event,
@@ -67,7 +70,7 @@ export const createEventController = async (req, res) => {
  */
 export const updateEventController = async (req, res) => {
   try {
-    const event = await updateEventService(req.params.id, req.body, req.user.id, req.user.role);
+    const event = await updateEventService(req.params.id, req.body, req.user.role, req.user.collegeId);
     return res.json({
       message: 'Event updated successfully',
       data: event,
@@ -86,7 +89,7 @@ export const updateEventController = async (req, res) => {
  */
 export const deleteEventController = async (req, res) => {
   try {
-    await deleteEventService(req.params.id, req.user.id, req.user.role);
+    await deleteEventService(req.params.id, req.user.role, req.user.collegeId);
     return res.json({ message: 'Event deleted successfully' });
   } catch (err) {
     console.error('deleteEvent Error:', err);
@@ -98,21 +101,21 @@ export const deleteEventController = async (req, res) => {
 };
 
 /**
- * Update event visibility
+ * Get my events (events created by current user)
  */
-export const updateEventVisibilityController = async (req, res) => {
+export const getMyEventsController = async (req, res) => {
   try {
-    const { visibility } = req.body;
-    const event = await updateEventVisibilityService(req.params.id, visibility, req.user.id, req.user.role);
+    const result = await getMyEventsService(req.user.id, req.query);
     return res.json({
-      message: `Event visibility updated to ${visibility} successfully`,
-      data: event,
+      message: 'My events fetched successfully',
+      data: result.events,
+      pagination: result.pagination,
     });
   } catch (err) {
-    console.error('updateEventVisibility Error:', err);
+    console.error('getMyEvents Error:', err);
     if (err?.status) {
-      return res.status(err.status).json({ error: err.message, issues: err.issues });
+      return res.status(err.status).json({ error: err.message });
     }
-    return res.status(500).json({ error: 'Failed to update event visibility' });
+    return res.status(500).json({ error: 'Failed to fetch my events' });
   }
 };

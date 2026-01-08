@@ -3,8 +3,8 @@ import {
   registerEventController,
   checkInEventController,
   razorpayWebhookController,
-  getRegistrationDetailsController,
-  cancelRegistrationController,
+  getRegistrationsController,
+  getMyRegistrationsController,
 } from '../controllers/registration.controller.js';
 import { authMiddleware, roleMiddleware } from '../middleware/authMiddleware.js';
 
@@ -30,15 +30,15 @@ router.post('/checkin', authMiddleware, roleMiddleware(['ORGANIZER', 'ADMIN']), 
 router.post('/webhook/razorpay', razorpayWebhookController);
 
 /**
- * GET /registrations/:id
- * Get registration details
+ * GET /registrations/event/:eventId
+ * Get all registrations for an event (ORGANIZER/ADMIN only)
  */
-router.get('/:id', authMiddleware, getRegistrationDetailsController);
+router.get('/event/:eventId', authMiddleware, roleMiddleware(['ORGANIZER', 'ADMIN']), getRegistrationsController);
 
 /**
- * PUT /registrations/:id/cancel
- * Cancel registration
+ * GET /registrations/my
+ * Get current user's registrations
  */
-router.put('/:id/cancel', authMiddleware, cancelRegistrationController);
+router.get('/my', authMiddleware, getMyRegistrationsController);
 
 export default router;

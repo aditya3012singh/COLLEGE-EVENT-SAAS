@@ -5,7 +5,7 @@ import {
   deleteEventController,
   getAllEventsController,
   getEventByIdController,
-  updateEventVisibilityController,
+  getMyEventsController,
 } from '../controllers/event.controller.js';
 import { authMiddleware, roleMiddleware } from '../middleware/authMiddleware.js';
 
@@ -42,9 +42,9 @@ router.get('/', authMiddleware, getAllEventsController);
 router.get('/:id', authMiddleware, getEventByIdController);
 
 /**
- * PUT /events/:id/visibility
- * Update event visibility
+ * GET /events/my
+ * Get events created by current user
  */
-router.put('/:id/visibility', authMiddleware, updateEventVisibilityController);
+router.get('/my', authMiddleware, getMyEventsController);
 
 export default router;
