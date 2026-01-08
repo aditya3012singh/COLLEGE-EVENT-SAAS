@@ -4,6 +4,7 @@ import {
   loginController,
   getMeController,
   verifyTokenController,
+  logoutController,
 } from '../controllers/auth.controller.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 
@@ -20,6 +21,12 @@ router.post('/register', registerController);
  * Login user and return token
  */
 router.post('/login', loginController);
+
+/**
+ * POST /auth/logout
+ * Logout user by clearing cookie
+ */
+router.post('/logout', logoutController);
 
 /**
  * GET /auth/me

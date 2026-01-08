@@ -10,7 +10,17 @@ import {
 export const registerController = async (req, res) => {
   try {
     const { token, user } = await registerService(req.body);
-    return res.status(201).json({ message: 'User registered', token, user });
+    
+    // Set secure, HTTP-only cookie
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 3600000, // 1 hour in milliseconds
+      path: '/',
+    });
+    
+    return res.status(201).json({ message: 'User registered', user });
   } catch (err) {
     console.error('Registration error:', err);
     if (err?.status) {
@@ -32,7 +42,17 @@ export const registerController = async (req, res) => {
 export const loginController = async (req, res) => {
   try {
     const { token, user } = await loginService(req.body);
-    return res.json({ message: 'Login successful', token, user });
+    
+    // Set secure, HTTP-only cookie
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 3600000, // 1 hour in milliseconds
+      path: '/',
+    });
+    
+    return res.json({ message: 'Login successful', user });
   } catch (err) {
     console.error('Login error:', err);
     if (err?.status) {
@@ -77,5 +97,23 @@ export const verifyTokenController = async (req, res) => {
   } catch (err) {
     console.error('Token verification error:', err);
     return res.status(500).json({ error: 'Token verification failed' });
+  }
+};
+
+/**
+ * Logout user by clearing cookie
+ */
+export const logoutController = async (req, res) => {
+  try {
+    res.clearCookie('authToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+    return res.json({ message: 'Logout successful' });
+  } catch (err) {
+    console.error('Logout error:', err);
+    return res.status(500).json({ error: 'Logout failed' });
   }
 };

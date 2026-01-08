@@ -7,15 +7,15 @@ export const register = createAsyncThunk(
   async (userData, { rejectWithValue }) => {
     try {
       const response = await api.post("/auth/register", userData);
-      const { token, user } = response.data.data;
+      const { user } = response.data;
       
-      // Save token to localStorage
+      // Cookie is set automatically by the server
+      // Store user info in localStorage for UI purposes
       if (typeof window !== "undefined") {
-        localStorage.setItem("authToken", token);
         localStorage.setItem("user", JSON.stringify(user));
       }
       
-      return response.data.data;
+      return user;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.error || { message: "Registration failed" }
@@ -30,15 +30,15 @@ export const login = createAsyncThunk(
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await api.post("/auth/login", credentials);
-      const { token, user } = response.data.data;
+      const { user } = response.data;
       
-      // Save token to localStorage
+      // Cookie is set automatically by the server
+      // Store user info in localStorage for UI purposes
       if (typeof window !== "undefined") {
-        localStorage.setItem("authToken", token);
         localStorage.setItem("user", JSON.stringify(user));
       }
       
-      return response.data.data;
+      return user;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.error || { message: "Login failed" }
@@ -53,7 +53,7 @@ export const getCurrentUser = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get("/auth/me");
-      return response.data.data;
+      return response.data.user;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.error || { message: "Failed to fetch user" }
@@ -68,7 +68,7 @@ export const verifyToken = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get("/auth/verify");
-      return response.data.data;
+      return response.data.user;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.error || { message: "Token verification failed" }
@@ -78,10 +78,20 @@ export const verifyToken = createAsyncThunk(
 );
 
 // Logout
-export const logout = createAsyncThunk("auth/logout", async () => {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("user");
+export const logout = createAsyncThunk(
+  "auth/logout",
+  async (_, { rejectWithValue }) => {
+    try {
+      await api.post("/auth/logout");
+      // Clear user info from localStorage
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("user");
+      }
+      return null;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.error || { message: "Logout failed" }
+      );
+    }
   }
-  return null;
-});
+);

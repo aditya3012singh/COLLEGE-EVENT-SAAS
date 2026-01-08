@@ -42,8 +42,8 @@ const authSlice = createSlice({
       })
       .addCase(register.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
+        state.user = action.payload;
+        state.token = null; // Token is stored in HTTP-only cookie
         state.isAuthenticated = true;
         state.error = null;
       })
@@ -60,8 +60,8 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
+        state.user = action.payload;
+        state.token = null; // Token is stored in HTTP-only cookie
         state.isAuthenticated = true;
         state.error = null;
       })
@@ -79,6 +79,7 @@ const authSlice = createSlice({
       .addCase(getCurrentUser.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload;
+        state.token = null; // Token is stored in HTTP-only cookie
         state.isAuthenticated = true;
         state.error = null;
       })
