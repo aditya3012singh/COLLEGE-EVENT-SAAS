@@ -33,17 +33,21 @@ export const login = createAsyncThunk(
     try {
       const response = await api.post("/auth/login", credentials);
       const { user } = response.data;
+      console.log("[Auth Thunk] Login successful, user:", user);
       
       // Cookie is set automatically by the server
       // Store user info in localStorage and cookie for UI and middleware purposes
       if (typeof window !== "undefined") {
         localStorage.setItem("user", JSON.stringify(user));
+        console.log("[Auth Thunk] Stored user in localStorage");
         // Store user in cookie for middleware access
         document.cookie = `user=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=86400; SameSite=Lax`;
+        console.log("[Auth Thunk] Stored user in cookie");
       }
       
       return user;
     } catch (error) {
+      console.error("[Auth Thunk] Login error:", error);
       return rejectWithValue(
         error.response?.data?.error || { message: "Login failed" }
       );

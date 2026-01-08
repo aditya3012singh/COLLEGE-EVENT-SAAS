@@ -11,12 +11,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear user from localStorage and cookies, then redirect to login
+      // Clear user from localStorage and cookies
       if (typeof window !== "undefined") {
         localStorage.removeItem("user");
         // Clear user cookie
         document.cookie = "user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-        window.location.href = "/auth";
+        // Don't redirect here - let middleware handle it
       }
     }
     return Promise.reject(error);

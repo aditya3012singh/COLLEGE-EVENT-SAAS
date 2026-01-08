@@ -14,8 +14,8 @@ export const registerController = async (req, res) => {
     // Set secure, HTTP-only cookie
     res.cookie('authToken', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true, // Always use secure in production and development for consistent behavior
+      sameSite: 'lax', // Allows same-site requests
       maxAge: 3600000, // 1 hour in milliseconds
       path: '/',
     });
@@ -46,8 +46,8 @@ export const loginController = async (req, res) => {
     // Set secure, HTTP-only cookie
     res.cookie('authToken', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true, // Always use secure in production and development for consistent behavior
+      sameSite: 'lax', // Allows same-site requests
       maxAge: 3600000, // 1 hour in milliseconds
       path: '/',
     });

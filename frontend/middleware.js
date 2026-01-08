@@ -13,7 +13,7 @@ const ROLE_BASED_ROUTES = {
 /**
  * Public routes that don't require authentication
  */
-const PUBLIC_ROUTES = ["/auth", "/auth/login", "/auth/register", "/"];
+const PUBLIC_ROUTES = ["/auth", "/auth/login", "/auth/register"];
 
 /**
  * Get user data from cookies or localStorage (server-side)
@@ -21,12 +21,21 @@ const PUBLIC_ROUTES = ["/auth", "/auth/login", "/auth/register", "/"];
  */
 function getUserFromRequest(request) {
   try {
-    // Check if user data is stored in a cookie
+    // First check if authToken exists (set by backend, HTTP-only)
+    const authToken = request.cookies.get("authToken");
+    if (!authToken) {
+      return null;
+    }
+
+    // If authToken exists, try to get user data from the user cookie
     const userCookie = request.cookies.get("user");
     if (userCookie) {
       return JSON.parse(userCookie.value);
     }
-    return null;
+
+    // If we have authToken but no user cookie, return a minimal user object
+    // The user data will be fetched on the client side
+    return { role: "UNKNOWN" };
   } catch (error) {
     console.error("Error parsing user from cookie:", error);
     return null;
@@ -81,11 +90,23 @@ export function middleware(request) {
   // Get user from request
   const user = getUserFromRequest(request);
 
-  // If user is not authenticated, redirect to login
-  if (!user || !user.role) {
+  // If user is not authenticated (no authToken cookie)
+  if (!user) {
     const loginUrl = new URL("/auth/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // If user role is UNKNOWN, it means authToken exists but user data hasn't been synced yet
+  // Allow the request to proceed - client will restore user from localStorage
+  if (user.role === "UNKNOWN") {
+    return NextResponse.next();
+  }
+
+  // Handle root path - redirect authenticated users to dashboard
+  if (pathname === "/" || pathname === "") {
+    const roleBasedPath = getRoleBasedRedirect(user.role);
+    return NextResponse.redirect(new URL(roleBasedPath, request.url));
   }
 
   // Check if user is trying to access dashboard root

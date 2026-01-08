@@ -1,9 +1,8 @@
+"use client";
 
 export default function authLayout({ children }) {
   return (
-    <div
-      style={{}}
-    >
+    <div>
       {children}
     </div>
   );
