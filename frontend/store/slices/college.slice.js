@@ -40,8 +40,13 @@ const collegeSlice = createSlice({
       })
       .addCase(getAllColleges.fulfilled, (state, action) => {
         state.loading = false;
-        state.colleges = action.payload.data;
-        state.pagination = action.payload.pagination;
+        state.colleges = action.payload.colleges || [];
+        state.pagination = action.payload.pagination || {
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 0,
+        };
         state.error = null;
       })
       .addCase(getAllColleges.rejected, (state, action) => {

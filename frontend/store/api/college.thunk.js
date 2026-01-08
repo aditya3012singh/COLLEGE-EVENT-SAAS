@@ -9,6 +9,7 @@ export const getAllColleges = createAsyncThunk(
       const response = await api.get("/colleges", {
         params: { page, limit },
       });
+      
       return response.data;
     } catch (error) {
       return rejectWithValue(
