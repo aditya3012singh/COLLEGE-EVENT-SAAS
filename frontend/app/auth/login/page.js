@@ -6,6 +6,20 @@ import { useDispatch, useSelector } from "react-redux";
 import Link from "next/link";
 import { login } from "@/store/api/auth.thunk";
 
+// Helper function to get role-based redirect path
+function getRoleBasedRedirect(role) {
+  switch (role) {
+    case "ADMIN":
+      return "/dashboard/admin";
+    case "ORGANIZER":
+      return "/dashboard/organiser";
+    case "STUDENT":
+      return "/dashboard/student";
+    default:
+      return "/dashboard";
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const dispatch = useDispatch();
@@ -20,7 +34,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      router.push("/dashboard");
+      const redirectPath = getRoleBasedRedirect(user.role);
+      router.push(redirectPath);
     }
   }, [isAuthenticated, user, router]);
 
@@ -44,8 +59,9 @@ export default function LoginPage() {
     }
 
     try {
-      await dispatch(login(formData)).unwrap();
-      router.push("/dashboard");
+      const userData = await dispatch(login(formData)).unwrap();
+      const redirectPath = getRoleBasedRedirect(userData.role);
+      router.push(redirectPath);
     } catch (err) {
       setFormError(err.message || "Login failed. Please check your credentials.");
     }

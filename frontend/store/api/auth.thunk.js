@@ -10,9 +10,11 @@ export const register = createAsyncThunk(
       const { user } = response.data;
       
       // Cookie is set automatically by the server
-      // Store user info in localStorage for UI purposes
+      // Store user info in localStorage and cookie for UI and middleware purposes
       if (typeof window !== "undefined") {
         localStorage.setItem("user", JSON.stringify(user));
+        // Store user in cookie for middleware access
+        document.cookie = `user=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=86400; SameSite=Lax`;
       }
       
       return user;
@@ -33,9 +35,11 @@ export const login = createAsyncThunk(
       const { user } = response.data;
       
       // Cookie is set automatically by the server
-      // Store user info in localStorage for UI purposes
+      // Store user info in localStorage and cookie for UI and middleware purposes
       if (typeof window !== "undefined") {
         localStorage.setItem("user", JSON.stringify(user));
+        // Store user in cookie for middleware access
+        document.cookie = `user=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=86400; SameSite=Lax`;
       }
       
       return user;
@@ -83,9 +87,11 @@ export const logout = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await api.post("/auth/logout");
-      // Clear user info from localStorage
+      // Clear user info from localStorage and cookies
       if (typeof window !== "undefined") {
         localStorage.removeItem("user");
+        // Clear user cookie
+        document.cookie = "user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       }
       return null;
     } catch (error) {

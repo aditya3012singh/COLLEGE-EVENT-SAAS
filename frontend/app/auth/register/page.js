@@ -5,7 +5,22 @@ import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import Link from "next/link";
 import { register } from "@/store/api/auth.thunk";
-import { getAllColleges } from "@/store/api/college.thunk";
+import { getAllColleges } from "@/store";
+
+
+// Helper function to get role-based redirect path
+function getRoleBasedRedirect(role) {
+  switch (role) {
+    case "ADMIN":
+      return "/dashboard/admin";
+    case "ORGANIZER":
+      return "/dashboard/organiser";
+    case "STUDENT":
+      return "/dashboard/student";
+    default:
+      return "/dashboard";
+  }
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -30,7 +45,8 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      router.push("/dashboard");
+      const redirectPath = getRoleBasedRedirect(user.role);
+      router.push(redirectPath);
     }
   }, [isAuthenticated, user, router]);
 
@@ -73,8 +89,9 @@ export default function RegisterPage() {
       const { confirmPassword, ...registerData } = formData;
       registerData.collegeId = parseInt(registerData.collegeId);
       
-      await dispatch(register(registerData)).unwrap();
-      router.push("/dashboard");
+      const userData = await dispatch(register(registerData)).unwrap();
+      const redirectPath = getRoleBasedRedirect(userData.role);
+      router.push(redirectPath);
     } catch (err) {
       setFormError(
         err.message || "Registration failed. Please try again."
